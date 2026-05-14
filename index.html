@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0d14">
+<title>AIRPORTLE — Daily IATA Code Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Major+Mono+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0d14; --bg-panel: #131822; --bg-tile: #1d232e; --bg-tile-active: #232a37;
+    --border: #2a3142; --border-bright: #4a546b;
+    --amber: #ffa726; --amber-soft: #d48b1f; --amber-dim: #6b4d1f;
+    --green: #5fa860; --green-bg: #3d6e3e;
+    --yellow: #d4a82e; --yellow-bg: #8a6e1f;
+    --absent: #353c4a;
+    --text: #e8d5a3; --text-dim: #7d8595; --text-bright: #fff3d6;
+    --red: #d4534b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow-x: hidden; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    min-height: 100vh; display: flex; flex-direction: column;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,167,38,0.08), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 110%, rgba(95,168,96,0.04), transparent 60%);
+    background-attachment: fixed;
+    -webkit-tap-highlight-color: transparent; user-select: none;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none;
+    background-image: repeating-linear-gradient(0deg,
+      rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px,
+      transparent 1px, transparent 3px);
+    z-index: 1;
+  }
+  .app {
+    flex: 1; display: flex; flex-direction: column;
+    max-width: 520px; margin: 0 auto; width: 100%;
+    padding: 12px 16px 8px; position: relative; z-index: 2;
+  }
+  header { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px; }
+  .header-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .logo {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(1.6rem, 6vw, 2.2rem);
+    color: var(--amber); letter-spacing: 0.05em;
+    text-shadow: 0 0 24px rgba(255,167,38,0.4); line-height: 1;
+  }
+  .logo .plane {
+    display: inline-block; transform: translateY(-2px) rotate(-12deg);
+    margin-right: 6px; color: var(--text-bright);
+  }
+  .header-meta {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+    font-size: 0.65rem; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.15em; font-weight: 500;
+  }
+  .puzzle-num { color: var(--amber-soft); font-weight: 700; font-size: 0.7rem; }
+  .header-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .icon-btn {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text-dim); font-family: inherit; font-size: 0.7rem;
+    padding: 5px 10px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover, .icon-btn:active { color: var(--amber); border-color: var(--amber-dim); }
+  .modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 14px; }
+  .mode {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text-dim); font-family: inherit;
+    font-size: 0.62rem; font-weight: 700; padding: 8px 4px;
+    cursor: pointer; text-transform: uppercase; letter-spacing: 0.1em;
+    transition: all 0.15s; position: relative; overflow: hidden;
+  }
+  .mode:hover { color: var(--text); border-color: var(--border-bright); }
+  .mode.active {
+    color: var(--bg); background: var(--amber); border-color: var(--amber);
+    box-shadow: 0 0 16px rgba(255,167,38,0.4);
+  }
+  .mode.active.mode-plaid {
+    background: linear-gradient(45deg, #ff4e50, #f9d423, #4ecdc4, #ff4e50);
+    background-size: 200% 200%;
+    animation: plaid-shift 3s linear infinite;
+    color: #000;
+  }
+  @keyframes plaid-shift { 0% { background-position: 0% 0%; } 100% { background-position: 200% 200%; } }
+  .board-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 8px 0; min-height: 0; }
+  .board { display: grid; grid-template-rows: repeat(6, 1fr); gap: 6px; aspect-ratio: 3 / 6; max-height: min(420px, 50vh); }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .tile {
+    background: var(--bg-tile); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.8rem, 6vw, 2.4rem); font-weight: 800;
+    color: var(--text-bright); aspect-ratio: 1;
+    text-transform: uppercase;
+    transition: transform 0.2s, border-color 0.1s;
+    perspective: 600px; transform-style: preserve-3d; line-height: 1;
+  }
+  .tile.filled {
+    border-color: var(--border-bright); background: var(--bg-tile-active);
+    animation: pop 0.1s ease-out;
+  }
+  @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+  .tile.flipping { transform: rotateX(90deg); transition: transform 0.25s ease-in; }
+  .tile.flipped { transform: rotateX(0deg); transition: transform 0.25s ease-out; }
+  .tile.correct { background: var(--green-bg); border-color: var(--green-bg); color: white; box-shadow: 0 0 14px rgba(95,168,96,0.35); }
+  .tile.present { background: var(--yellow-bg); border-color: var(--yellow-bg); color: white; box-shadow: 0 0 14px rgba(212,168,46,0.3); }
+  .tile.absent { background: var(--absent); border-color: var(--absent); color: var(--text-dim); }
+  .row.shake { animation: shake 0.4s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); } 40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); } 80% { transform: translateX(4px); }
+  }
+  .row.win .tile { animation: bounce 0.5s ease-in-out; }
+  .row.win .tile:nth-child(1) { animation-delay: 0s; }
+  .row.win .tile:nth-child(2) { animation-delay: 0.1s; }
+  .row.win .tile:nth-child(3) { animation-delay: 0.2s; }
+  @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+  .toast {
+    position: fixed; top: 88px; left: 50%; transform: translateX(-50%);
+    background: var(--text-bright); color: var(--bg);
+    padding: 10px 18px; font-weight: 700; font-size: 0.8rem;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    z-index: 300; pointer-events: none; opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .toast.show { opacity: 1; }
+  .keyboard { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; margin-top: auto; }
+  .kb-row { display: flex; gap: 4px; justify-content: center; }
+  .key {
+    background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text); font-family: inherit;
+    font-size: 0.9rem; font-weight: 700;
+    flex: 1; max-width: 38px; height: 48px;
+    cursor: pointer; text-transform: uppercase;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .key.wide { max-width: 64px; font-size: 0.65rem; letter-spacing: 0.05em; }
+  .key:hover, .key:active { background: var(--bg-tile-active); border-color: var(--border-bright); }
+  .key.correct { background: var(--green-bg); border-color: var(--green-bg); color: white; }
+  .key.present { background: var(--yellow-bg); border-color: var(--yellow-bg); color: white; }
+  .key.absent { background: #1a1f29; border-color: #1a1f29; color: var(--text-dim); opacity: 0.7; }
+  .modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(5,7,12,0.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200; padding: 16px;
+    animation: fadeIn 0.2s;
+  }
+  .modal-bg.show { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: var(--bg-panel); border: 1px solid var(--border-bright);
+    max-width: 460px; width: 100%; max-height: 90vh; overflow-y: auto;
+    padding: 24px; position: relative;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(255,167,38,0.08);
+  }
+  .modal-close {
+    position: absolute; top: 14px; right: 14px;
+    background: none; border: none; color: var(--text-dim);
+    font-size: 1.4rem; cursor: pointer; font-family: inherit;
+    width: 28px; height: 28px; line-height: 1;
+  }
+  .modal-close:hover { color: var(--amber); }
+  .modal h2 {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 1.4rem; color: var(--amber);
+    margin-bottom: 16px; letter-spacing: 0.05em;
+  }
+  .modal p { font-size: 0.85rem; line-height: 1.6; margin-bottom: 12px; color: var(--text); }
+  .modal .dim { color: var(--text-dim); font-size: 0.75rem; }
+  .end-revealed { text-align: center; padding: 16px 0; }
+  .end-code {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 3.5rem; color: var(--amber);
+    letter-spacing: 0.1em;
+    text-shadow: 0 0 30px rgba(255,167,38,0.5);
+    margin: 8px 0 4px; line-height: 1;
+  }
+  .end-city {
+    font-size: 1rem; color: var(--text-bright);
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+  }
+  .end-country {
+    font-size: 0.75rem; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.15em; margin-top: 2px;
+  }
+  .end-result { margin: 18px 0 12px; font-size: 0.85rem; text-align: center; color: var(--text); }
+  .end-result strong { color: var(--amber); font-weight: 700; }
+  .countdown {
+    text-align: center; color: var(--text-dim);
+    font-size: 0.7rem; margin-top: 10px;
+    text-transform: uppercase; letter-spacing: 0.15em;
+  }
+  .countdown strong { color: var(--text); font-weight: 700; }
+  .btn-row { display: flex; gap: 8px; margin-top: 16px; justify-content: center; }
+  .btn {
+    background: var(--amber); color: var(--bg);
+    border: none; font-family: inherit;
+    font-size: 0.8rem; font-weight: 800;
+    padding: 12px 24px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.15em;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--text-bright); }
+  .btn:active { transform: scale(0.97); }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0 20px; }
+  .stat { text-align: center; padding: 8px 4px; background: var(--bg-tile); border: 1px solid var(--border); }
+  .stat-num { font-size: 1.4rem; font-weight: 800; color: var(--amber); line-height: 1; }
+  .stat-label { font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 4px; }
+  .dist-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 0.8rem; }
+  .dist-label { width: 14px; color: var(--text-dim); font-weight: 700; }
+  .dist-bar { flex: 1; height: 22px; background: var(--bg-tile); position: relative; }
+  .dist-fill {
+    background: var(--amber-soft); height: 100%; color: var(--bg);
+    font-weight: 800; font-size: 0.75rem;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 6px; min-width: 24px;
+    transition: width 0.5s;
+  }
+  .dist-fill.current { background: var(--amber); }
+  .help-example { display: flex; gap: 4px; margin: 10px 0; }
+  .help-tile {
+    width: 32px; height: 32px; border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; background: var(--bg-tile); color: var(--text-bright);
+  }
+  .help-tile.correct { background: var(--green-bg); border-color: var(--green-bg); color: white; }
+  .help-tile.present { background: var(--yellow-bg); border-color: var(--yellow-bg); color: white; }
+  .help-tile.absent { background: var(--absent); border-color: var(--absent); color: var(--text-dim); }
+  .mode-list { margin: 12px 0; }
+  .mode-list li {
+    list-style: none; padding: 6px 0;
+    border-bottom: 1px solid var(--border); font-size: 0.78rem;
+  }
+  .mode-list li:last-child { border-bottom: none; }
+  .mode-list strong {
+    color: var(--amber); text-transform: uppercase;
+    letter-spacing: 0.1em; font-size: 0.75rem;
+  }
+  .plaid-warning {
+    background: linear-gradient(45deg, rgba(255,78,80,0.1), rgba(249,212,35,0.1), rgba(78,205,196,0.1));
+    border: 1px solid #f9d423;
+    padding: 10px 12px; margin: 10px 0;
+    font-size: 0.75rem; color: var(--text);
+  }
+  @media (max-width: 380px) {
+    .key { max-width: 32px; height: 44px; font-size: 0.8rem; }
+    .key.wide { max-width: 52px; font-size: 0.55rem; }
+    .mode { font-size: 0.55rem; padding: 7px 2px; }
+    .app { padding: 10px 10px 6px; }
+  }
+  @media (min-height: 800px) { .board { max-height: 480px; } }
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<div class="app">
+  <header>
+    <div class="header-top">
+      <div class="logo"><span class="plane">✈</span>AIRPORTLE</div>
+      <div class="header-meta">
+        <div id="date-display">—</div>
+        <div class="puzzle-num" id="puzzle-num">#0</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="help-btn">? HELP</button>
+      <button class="icon-btn" id="stats-btn">▤ STATS</button>
+    </div>
+  </header>
+
+  <div class="modes" id="modes">
+    <button class="mode active" data-mode="regular">Regular</button>
+    <button class="mode" data-mode="ridiculous">Ridiculous</button>
+    <button class="mode" data-mode="ludicrous">Ludicrous</button>
+    <button class="mode mode-plaid" data-mode="plaid">Plaid</button>
+  </div>
+
+  <div class="board-wrap"><div class="board" id="board"></div></div>
+  <div class="keyboard" id="keyboard"></div>
+</div>
+
+<div class="modal-bg" id="help-modal">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h2>How to Play</h2>
+    <p>Guess the daily 3-letter <strong>IATA airport code</strong> in 6 tries.</p>
+    <p>Each guess must be a real IATA code. Tile colors show how close you are:</p>
+    <div class="help-example">
+      <div class="help-tile correct">L</div><div class="help-tile">A</div><div class="help-tile">X</div>
+    </div>
+    <p class="dim"><strong style="color:var(--green)">L</strong> is in the answer and in the right spot.</p>
+    <div class="help-example">
+      <div class="help-tile">J</div><div class="help-tile present">F</div><div class="help-tile">K</div>
+    </div>
+    <p class="dim"><strong style="color:var(--yellow)">F</strong> is in the answer but in the wrong spot.</p>
+    <div class="help-example">
+      <div class="help-tile">B</div><div class="help-tile">O</div><div class="help-tile absent">S</div>
+    </div>
+    <p class="dim"><strong style="color:var(--text-dim)">S</strong> is not in the answer.</p>
+    <h2 style="margin-top:24px;">Difficulty Modes</h2>
+    <ul class="mode-list">
+      <li><strong>Regular</strong><br>US large/medium hubs &amp; top global airports.</li>
+      <li><strong>Ridiculous</strong><br>US small hubs &amp; tertiary international.</li>
+      <li><strong>Ludicrous</strong><br>Regional &amp; obscure airports worldwide (~70% international).</li>
+      <li><strong>Plaid</strong><br>Same pool as Ludicrous, but <em>no color hints</em>. Guess the exact code or lose.</li>
+    </ul>
+    <p class="dim">Each mode has its own daily puzzle, and no airport repeats until the entire tier is exhausted. New puzzles at midnight UTC.</p>
+  </div>
+</div>
+
+<div class="modal-bg" id="stats-modal">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <h2>Statistics</h2>
+    <p class="dim" style="text-transform:uppercase;letter-spacing:0.1em;font-size:0.7rem;margin-bottom:0;" id="stats-mode-label">Regular</p>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-num" id="stat-played">0</div><div class="stat-label">Played</div></div>
+      <div class="stat"><div class="stat-num" id="stat-winrate">0</div><div class="stat-label">Win %</div></div>
+      <div class="stat"><div class="stat-num" id="stat-streak">0</div><div class="stat-label">Streak</div></div>
+      <div class="stat"><div class="stat-num" id="stat-maxstreak">0</div><div class="stat-label">Max Streak</div></div>
+    </div>
+    <p class="dim" style="text-transform:uppercase;letter-spacing:0.1em;font-size:0.7rem;margin-bottom:6px;">Guess Distribution</p>
+    <div id="dist"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="end-modal">
+  <div class="modal">
+    <button class="modal-close" data-close>×</button>
+    <div class="end-revealed">
+      <div style="font-size:1.6rem;opacity:0.4;">✈</div>
+      <div class="end-code" id="end-code">—</div>
+      <div class="end-city" id="end-city">—</div>
+      <div class="end-country" id="end-country">—</div>
+    </div>
+    <div class="end-result" id="end-result"></div>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-num" id="end-stat-played">0</div><div class="stat-label">Played</div></div>
+      <div class="stat"><div class="stat-num" id="end-stat-winrate">0</div><div class="stat-label">Win %</div></div>
+      <div class="stat"><div class="stat-num" id="end-stat-streak">0</div><div class="stat-label">Streak</div></div>
+      <div class="stat"><div class="stat-num" id="end-stat-maxstreak">0</div><div class="stat-label">Max</div></div>
+    </div>
+    <div class="countdown">Next puzzle in <strong id="countdown">—</strong></div>
+    <div class="btn-row">
+      <button class="btn" id="share-btn">▤ SHARE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   AIRPORT DATABASE
+   Format: CODE: [city, country, tier]
+   Tiers:  1 = Regular   2 = Ridiculous   3 = Ludicrous (and Plaid)
+   Edit freely. Move an airport between tiers by changing the number.
+   Add new airports with the same format.
+   ═══════════════════════════════════════════════════════════════════════ */
+const AIRPORTS = {
+/* ─── TIER 1: REGULAR (US large/medium hubs + top global) ─── */
+ATL:["Atlanta","USA",1], LAX:["Los Angeles","USA",1], ORD:["Chicago","USA",1],
+DFW:["Dallas/Fort Worth","USA",1], DEN:["Denver","USA",1], JFK:["New York","USA",1],
+SFO:["San Francisco","USA",1], SEA:["Seattle","USA",1], LAS:["Las Vegas","USA",1],
+MCO:["Orlando","USA",1], EWR:["Newark","USA",1], CLT:["Charlotte","USA",1],
+MIA:["Miami","USA",1], PHX:["Phoenix","USA",1], IAH:["Houston Bush","USA",1],
+BOS:["Boston","USA",1], MSP:["Minneapolis","USA",1], FLL:["Fort Lauderdale","USA",1],
+DTW:["Detroit","USA",1], PHL:["Philadelphia","USA",1], LGA:["New York LaGuardia","USA",1],
+BWI:["Baltimore","USA",1], SLC:["Salt Lake City","USA",1], DCA:["Washington Reagan","USA",1],
+IAD:["Washington Dulles","USA",1], MDW:["Chicago Midway","USA",1], SAN:["San Diego","USA",1],
+TPA:["Tampa","USA",1], HNL:["Honolulu","USA",1], AUS:["Austin","USA",1],
+BNA:["Nashville","USA",1], DAL:["Dallas Love","USA",1], PDX:["Portland","USA",1],
+RDU:["Raleigh/Durham","USA",1], RSW:["Fort Myers","USA",1], SJC:["San Jose","USA",1],
+HOU:["Houston Hobby","USA",1], MSY:["New Orleans","USA",1], SAT:["San Antonio","USA",1],
+STL:["St. Louis","USA",1], PIT:["Pittsburgh","USA",1], SMF:["Sacramento","USA",1],
+OAK:["Oakland","USA",1], SNA:["Santa Ana","USA",1], CLE:["Cleveland","USA",1],
+JAX:["Jacksonville","USA",1], CMH:["Columbus","USA",1], IND:["Indianapolis","USA",1],
+ANC:["Anchorage","USA",1], PBI:["West Palm Beach","USA",1], ABQ:["Albuquerque","USA",1],
+MKE:["Milwaukee","USA",1], MCI:["Kansas City","USA",1], ONT:["Ontario","USA",1],
+MEM:["Memphis","USA",1], TUS:["Tucson","USA",1], BUR:["Burbank","USA",1],
+RNO:["Reno","USA",1], OGG:["Maui","USA",1], BUF:["Buffalo","USA",1],
+OMA:["Omaha","USA",1], TUL:["Tulsa","USA",1], OKC:["Oklahoma City","USA",1],
+BHM:["Birmingham","USA",1], CHS:["Charleston","USA",1], ALB:["Albany","USA",1],
+BOI:["Boise","USA",1], PVD:["Providence","USA",1], RIC:["Richmond","USA",1],
+ORF:["Norfolk","USA",1], SDF:["Louisville","USA",1], MHT:["Manchester NH","USA",1],
+GRR:["Grand Rapids","USA",1], GSP:["Greenville","USA",1], GEG:["Spokane","USA",1],
+FAI:["Fairbanks","USA",1], MSO:["Missoula","USA",1], BZN:["Bozeman","USA",1],
+JNU:["Juneau","USA",1], JAC:["Jackson Hole","USA",1], LIH:["Lihue","USA",1],
+ITO:["Hilo","USA",1], AVL:["Asheville","USA",1], PNS:["Pensacola","USA",1],
+MSN:["Madison","USA",1], DSM:["Des Moines","USA",1], COS:["Colorado Springs","USA",1],
+LIT:["Little Rock","USA",1], CRP:["Corpus Christi","USA",1], BTV:["Burlington VT","USA",1],
+ELP:["El Paso","USA",1], PSP:["Palm Springs","USA",1], KOA:["Kona","USA",1],
+DAY:["Dayton","USA",1], SAV:["Savannah","USA",1], ICT:["Wichita","USA",1],
+TYS:["Knoxville","USA",1], BTR:["Baton Rouge","USA",1], MOB:["Mobile","USA",1],
+MFR:["Medford","USA",1],
+/* — Top global / well-known international (~100) — */
+LHR:["London","UK",1], LGW:["London Gatwick","UK",1], CDG:["Paris","France",1],
+ORY:["Paris Orly","France",1], FRA:["Frankfurt","Germany",1], MUC:["Munich","Germany",1],
+AMS:["Amsterdam","Netherlands",1], MAD:["Madrid","Spain",1], BCN:["Barcelona","Spain",1],
+FCO:["Rome","Italy",1], MXP:["Milan","Italy",1], ZRH:["Zurich","Switzerland",1],
+VIE:["Vienna","Austria",1], CPH:["Copenhagen","Denmark",1], ARN:["Stockholm","Sweden",1],
+OSL:["Oslo","Norway",1], HEL:["Helsinki","Finland",1], BRU:["Brussels","Belgium",1],
+DUB:["Dublin","Ireland",1], LIS:["Lisbon","Portugal",1], ATH:["Athens","Greece",1],
+IST:["Istanbul","Turkey",1], WAW:["Warsaw","Poland",1], PRG:["Prague","Czechia",1],
+MAN:["Manchester","UK",1], EDI:["Edinburgh","UK",1], NCE:["Nice","France",1],
+HAM:["Hamburg","Germany",1], DUS:["Düsseldorf","Germany",1], BER:["Berlin","Germany",1],
+GVA:["Geneva","Switzerland",1], BUD:["Budapest","Hungary",1],
+DXB:["Dubai","UAE",1], AUH:["Abu Dhabi","UAE",1], DOH:["Doha","Qatar",1],
+RUH:["Riyadh","Saudi Arabia",1], JED:["Jeddah","Saudi Arabia",1], TLV:["Tel Aviv","Israel",1],
+BAH:["Bahrain","Bahrain",1], KWI:["Kuwait City","Kuwait",1], MCT:["Muscat","Oman",1],
+AMM:["Amman","Jordan",1],
+HND:["Tokyo Haneda","Japan",1], NRT:["Tokyo Narita","Japan",1], KIX:["Osaka","Japan",1],
+ITM:["Osaka Itami","Japan",1], NGO:["Nagoya","Japan",1], FUK:["Fukuoka","Japan",1],
+ICN:["Seoul","South Korea",1], GMP:["Seoul Gimpo","South Korea",1],
+PEK:["Beijing Capital","China",1], PVG:["Shanghai Pudong","China",1],
+SHA:["Shanghai Hongqiao","China",1], CAN:["Guangzhou","China",1], CTU:["Chengdu","China",1],
+HKG:["Hong Kong","Hong Kong",1], TPE:["Taipei","Taiwan",1], SIN:["Singapore","Singapore",1],
+BKK:["Bangkok","Thailand",1], DMK:["Bangkok Don Mueang","Thailand",1],
+KUL:["Kuala Lumpur","Malaysia",1], CGK:["Jakarta","Indonesia",1], DPS:["Bali","Indonesia",1],
+MNL:["Manila","Philippines",1], HAN:["Hanoi","Vietnam",1], SGN:["Ho Chi Minh City","Vietnam",1],
+DEL:["Delhi","India",1], BOM:["Mumbai","India",1], BLR:["Bangalore","India",1],
+SYD:["Sydney","Australia",1], MEL:["Melbourne","Australia",1], BNE:["Brisbane","Australia",1],
+PER:["Perth","Australia",1], ADL:["Adelaide","Australia",1], AKL:["Auckland","New Zealand",1],
+CHC:["Christchurch","New Zealand",1],
+YYZ:["Toronto","Canada",1], YVR:["Vancouver","Canada",1], YUL:["Montreal","Canada",1],
+YYC:["Calgary","Canada",1],
+GRU:["São Paulo","Brazil",1], GIG:["Rio de Janeiro","Brazil",1], BSB:["Brasília","Brazil",1],
+EZE:["Buenos Aires","Argentina",1], SCL:["Santiago","Chile",1], LIM:["Lima","Peru",1],
+BOG:["Bogotá","Colombia",1], CCS:["Caracas","Venezuela",1],
+MEX:["Mexico City","Mexico",1], CUN:["Cancún","Mexico",1], GDL:["Guadalajara","Mexico",1],
+MTY:["Monterrey","Mexico",1], SJU:["San Juan","Puerto Rico",1],
+JNB:["Johannesburg","South Africa",1], CPT:["Cape Town","South Africa",1],
+CAI:["Cairo","Egypt",1], NBO:["Nairobi","Kenya",1], ADD:["Addis Ababa","Ethiopia",1],
+LOS:["Lagos","Nigeria",1], CMN:["Casablanca","Morocco",1], RAK:["Marrakech","Morocco",1],
+DKR:["Dakar","Senegal",1], ALG:["Algiers","Algeria",1], TUN:["Tunis","Tunisia",1],
+
+/* ─── TIER 2: RIDICULOUS (US small hubs + tertiary international) ─── */
+/* — US small hubs / non-hub primaries (~150) — */
+ABE:["Allentown","USA",2], ACK:["Nantucket","USA",2], ACT:["Waco","USA",2],
+ACY:["Atlantic City","USA",2], AEX:["Alexandria LA","USA",2], AGS:["Augusta","USA",2],
+AMA:["Amarillo","USA",2], ASE:["Aspen","USA",2], ATW:["Appleton","USA",2],
+AZO:["Kalamazoo","USA",2], BDL:["Hartford","USA",2], BFL:["Bakersfield","USA",2],
+BGM:["Binghamton","USA",2], BGR:["Bangor","USA",2], BIL:["Billings","USA",2],
+BIS:["Bismarck","USA",2], BLI:["Bellingham","USA",2], BMI:["Bloomington IL","USA",2],
+BPT:["Beaumont","USA",2], BQK:["Brunswick","USA",2], CAE:["Columbia SC","USA",2],
+CHA:["Chattanooga","USA",2], CHO:["Charlottesville","USA",2], CID:["Cedar Rapids","USA",2],
+CKB:["Clarksburg","USA",2], CLL:["College Station","USA",2], CMI:["Champaign","USA",2],
+COU:["Columbia MO","USA",2], CRW:["Charleston WV","USA",2], CWA:["Wausau","USA",2],
+CYS:["Cheyenne","USA",2], DAB:["Daytona Beach","USA",2], DEC:["Decatur","USA",2],
+DHN:["Dothan","USA",2], DRO:["Durango","USA",2], EGE:["Eagle/Vail","USA",2],
+ELM:["Elmira","USA",2], EUG:["Eugene","USA",2], EVV:["Evansville","USA",2],
+EYW:["Key West","USA",2], FAR:["Fargo","USA",2], FAT:["Fresno","USA",2],
+FAY:["Fayetteville NC","USA",2], FCA:["Kalispell","USA",2], FLG:["Flagstaff","USA",2],
+FNT:["Flint","USA",2], FSD:["Sioux Falls","USA",2], FSM:["Fort Smith","USA",2],
+FWA:["Fort Wayne","USA",2], GFK:["Grand Forks","USA",2], GGG:["Longview","USA",2],
+GJT:["Grand Junction","USA",2], GNV:["Gainesville","USA",2], GPT:["Gulfport","USA",2],
+GRB:["Green Bay","USA",2], GRI:["Grand Island","USA",2], GSO:["Greensboro","USA",2],
+GTF:["Great Falls","USA",2], GTR:["Columbus MS","USA",2], HDN:["Hayden","USA",2],
+HLN:["Helena","USA",2], HPN:["White Plains","USA",2], HRL:["Harlingen","USA",2],
+HSV:["Huntsville","USA",2], HTS:["Huntington","USA",2], HYA:["Hyannis","USA",2],
+IDA:["Idaho Falls","USA",2], ILM:["Wilmington NC","USA",2], ISP:["Long Island","USA",2],
+ITH:["Ithaca","USA",2], JAN:["Jackson MS","USA",2], JLN:["Joplin","USA",2],
+KTN:["Ketchikan","USA",2], LAN:["Lansing","USA",2], LAW:["Lawton","USA",2],
+LBB:["Lubbock","USA",2], LCH:["Lake Charles","USA",2], LEX:["Lexington","USA",2],
+LFT:["Lafayette LA","USA",2], LGB:["Long Beach","USA",2], LNK:["Lincoln","USA",2],
+LRD:["Laredo","USA",2], LYH:["Lynchburg","USA",2], MAF:["Midland","USA",2],
+MBS:["Saginaw","USA",2], MCN:["Macon","USA",2], MEI:["Meridian","USA",2],
+MFE:["McAllen","USA",2], MGM:["Montgomery","USA",2], MGW:["Morgantown","USA",2],
+MHK:["Manhattan KS","USA",2], MLB:["Melbourne FL","USA",2], MLI:["Moline","USA",2],
+MLU:["Monroe","USA",2], MMH:["Mammoth Lakes","USA",2], MOT:["Minot","USA",2],
+MQT:["Marquette","USA",2], MRY:["Monterey","USA",2], MWA:["Marion IL","USA",2],
+MYR:["Myrtle Beach","USA",2], OAJ:["Jacksonville NC","USA",2], ORH:["Worcester","USA",2],
+OWB:["Owensboro","USA",2], PAH:["Paducah","USA",2], PIA:["Peoria","USA",2],
+PIE:["St. Petersburg","USA",2], PSC:["Pasco","USA",2], PWM:["Portland ME","USA",2],
+RAP:["Rapid City","USA",2], RDM:["Redmond OR","USA",2], RFD:["Rockford","USA",2],
+ROA:["Roanoke","USA",2], ROC:["Rochester","USA",2], SAF:["Santa Fe","USA",2],
+SBA:["Santa Barbara","USA",2], SBN:["South Bend","USA",2], SBP:["San Luis Obispo","USA",2],
+SCK:["Stockton","USA",2], SFB:["Sanford","USA",2], SGF:["Springfield MO","USA",2],
+SHD:["Staunton","USA",2], SHV:["Shreveport","USA",2], SJT:["San Angelo","USA",2],
+SLN:["Salina","USA",2], SMX:["Santa Maria","USA",2], SPI:["Springfield IL","USA",2],
+SRQ:["Sarasota","USA",2], STC:["St. Cloud","USA",2], STT:["St. Thomas","USA",2],
+STX:["St. Croix","USA",2], SUN:["Sun Valley","USA",2], SUX:["Sioux City","USA",2],
+SWF:["Newburgh","USA",2], SYR:["Syracuse","USA",2], TLH:["Tallahassee","USA",2],
+TOL:["Toledo","USA",2], TRI:["Tri-Cities","USA",2], TVC:["Traverse City","USA",2],
+TWF:["Twin Falls","USA",2], TYR:["Tyler","USA",2], VPS:["Destin","USA",2],
+XNA:["Bentonville","USA",2], YKM:["Yakima","USA",2],
+/* — Tertiary international (~150) — */
+GLA:["Glasgow","UK",2], NCL:["Newcastle","UK",2], BHX:["Birmingham","UK",2],
+ABZ:["Aberdeen","UK",2], JER:["Jersey","UK",2], LCY:["London City","UK",2],
+STN:["London Stansted","UK",2], LTN:["London Luton","UK",2], BFS:["Belfast","UK",2],
+LBA:["Leeds","UK",2], BRS:["Bristol","UK",2], LPL:["Liverpool","UK",2],
+EMA:["East Midlands","UK",2], CWL:["Cardiff","UK",2], SOU:["Southampton","UK",2],
+INV:["Inverness","UK",2],
+LYS:["Lyon","France",2], MRS:["Marseille","France",2], TLS:["Toulouse","France",2],
+BOD:["Bordeaux","France",2], NTE:["Nantes","France",2], LIL:["Lille","France",2],
+BVA:["Paris Beauvais","France",2], MPL:["Montpellier","France",2],
+HAJ:["Hannover","Germany",2], STR:["Stuttgart","Germany",2], CGN:["Cologne","Germany",2],
+NUE:["Nuremberg","Germany",2], LEJ:["Leipzig","Germany",2], BRE:["Bremen","Germany",2],
+DTM:["Dortmund","Germany",2], DRS:["Dresden","Germany",2],
+BSL:["Basel","Switzerland",2], BRN:["Bern","Switzerland",2],
+LNZ:["Linz","Austria",2], GRZ:["Graz","Austria",2], SZG:["Salzburg","Austria",2],
+INN:["Innsbruck","Austria",2], KLU:["Klagenfurt","Austria",2],
+GOT:["Gothenburg","Sweden",2], MMX:["Malmö","Sweden",2], BMA:["Stockholm Bromma","Sweden",2],
+AAL:["Aalborg","Denmark",2], BLL:["Billund","Denmark",2], AAR:["Aarhus","Denmark",2],
+BGO:["Bergen","Norway",2], TRD:["Trondheim","Norway",2], SVG:["Stavanger","Norway",2],
+TOS:["Tromsø","Norway",2],
+TMP:["Tampere","Finland",2], TKU:["Turku","Finland",2], OUL:["Oulu","Finland",2],
+RVN:["Rovaniemi","Finland",2],
+RIX:["Riga","Latvia",2], TLL:["Tallinn","Estonia",2], VNO:["Vilnius","Lithuania",2],
+KEF:["Reykjavik","Iceland",2], LUX:["Luxembourg","Luxembourg",2],
+ORK:["Cork","Ireland",2], SNN:["Shannon","Ireland",2], NOC:["Knock","Ireland",2],
+ANR:["Antwerp","Belgium",2], CRL:["Brussels Charleroi","Belgium",2], LGG:["Liège","Belgium",2],
+EIN:["Eindhoven","Netherlands",2], RTM:["Rotterdam","Netherlands",2], MST:["Maastricht","Netherlands",2],
+GRQ:["Groningen","Netherlands",2],
+OPO:["Porto","Portugal",2], FAO:["Faro","Portugal",2], FNC:["Madeira","Portugal",2],
+VLC:["Valencia","Spain",2], SVQ:["Seville","Spain",2], AGP:["Málaga","Spain",2],
+BIO:["Bilbao","Spain",2], ALC:["Alicante","Spain",2], PMI:["Mallorca","Spain",2],
+IBZ:["Ibiza","Spain",2], TFS:["Tenerife","Spain",2], LPA:["Las Palmas","Spain",2],
+ACE:["Lanzarote","Spain",2], MAH:["Menorca","Spain",2], FUE:["Fuerteventura","Spain",2],
+NAP:["Naples","Italy",2], VCE:["Venice","Italy",2], FLR:["Florence","Italy",2],
+BLQ:["Bologna","Italy",2], CTA:["Catania","Italy",2], PMO:["Palermo","Italy",2],
+BRI:["Bari","Italy",2], CAG:["Cagliari","Italy",2], TRN:["Turin","Italy",2],
+PSA:["Pisa","Italy",2], VRN:["Verona","Italy",2], CIA:["Rome Ciampino","Italy",2],
+BGY:["Bergamo","Italy",2],
+SKG:["Thessaloniki","Greece",2], HER:["Heraklion","Greece",2], RHO:["Rhodes","Greece",2],
+CFU:["Corfu","Greece",2], JMK:["Mykonos","Greece",2], JTR:["Santorini","Greece",2],
+AYT:["Antalya","Turkey",2], ADB:["Izmir","Turkey",2], ESB:["Ankara","Turkey",2],
+SAW:["Istanbul Sabiha","Turkey",2], BJV:["Bodrum","Turkey",2], DLM:["Dalaman","Turkey",2],
+SOF:["Sofia","Bulgaria",2], OTP:["Bucharest","Romania",2],
+KRK:["Kraków","Poland",2], GDN:["Gdańsk","Poland",2], WRO:["Wrocław","Poland",2],
+POZ:["Poznań","Poland",2], KTW:["Katowice","Poland",2],
+BTS:["Bratislava","Slovakia",2], BRQ:["Brno","Czechia",2],
+ZAG:["Zagreb","Croatia",2], SPU:["Split","Croatia",2], DBV:["Dubrovnik","Croatia",2],
+LJU:["Ljubljana","Slovenia",2], BEG:["Belgrade","Serbia",2], SJJ:["Sarajevo","Bosnia",2],
+TIA:["Tirana","Albania",2], SKP:["Skopje","N. Macedonia",2],
+TIV:["Tivat","Montenegro",2], PRN:["Pristina","Kosovo",2],
+KBP:["Kyiv","Ukraine",2], MSQ:["Minsk","Belarus",2],
+LED:["St. Petersburg","Russia",2], KZN:["Kazan","Russia",2], SVX:["Yekaterinburg","Russia",2],
+/* — Asia tertiary — */
+OKA:["Okinawa","Japan",2], CTS:["Sapporo","Japan",2], HIJ:["Hiroshima","Japan",2],
+NGS:["Nagasaki","Japan",2], KOJ:["Kagoshima","Japan",2], SDJ:["Sendai","Japan",2],
+HKD:["Hakodate","Japan",2], OKJ:["Okayama","Japan",2], KMI:["Miyazaki","Japan",2],
+PUS:["Busan","South Korea",2], CJU:["Jeju","South Korea",2], TAE:["Daegu","South Korea",2],
+HRB:["Harbin","China",2], DLC:["Dalian","China",2], SHE:["Shenyang","China",2],
+TAO:["Qingdao","China",2], TSN:["Tianjin","China",2], KMG:["Kunming","China",2],
+XIY:["Xi'an","China",2], WUH:["Wuhan","China",2], HGH:["Hangzhou","China",2],
+NKG:["Nanjing","China",2], XMN:["Xiamen","China",2], CKG:["Chongqing","China",2],
+SZX:["Shenzhen","China",2], MFM:["Macau","Macau",2], KHH:["Kaohsiung","Taiwan",2],
+CEB:["Cebu","Philippines",2], DVO:["Davao","Philippines",2], CRK:["Clark","Philippines",2],
+SUB:["Surabaya","Indonesia",2], JOG:["Yogyakarta","Indonesia",2], KNO:["Medan","Indonesia",2],
+PEN:["Penang","Malaysia",2], BKI:["Kota Kinabalu","Malaysia",2], KCH:["Kuching","Malaysia",2],
+LGK:["Langkawi","Malaysia",2],
+HKT:["Phuket","Thailand",2], CNX:["Chiang Mai","Thailand",2], USM:["Koh Samui","Thailand",2],
+DAD:["Da Nang","Vietnam",2], REP:["Siem Reap","Cambodia",2], PNH:["Phnom Penh","Cambodia",2],
+VTE:["Vientiane","Laos",2], LPQ:["Luang Prabang","Laos",2],
+RGN:["Yangon","Myanmar",2], MDL:["Mandalay","Myanmar",2],
+KTM:["Kathmandu","Nepal",2], CMB:["Colombo","Sri Lanka",2], MLE:["Malé","Maldives",2],
+DAC:["Dhaka","Bangladesh",2],
+MAA:["Chennai","India",2], CCU:["Kolkata","India",2], HYD:["Hyderabad","India",2],
+COK:["Kochi","India",2], TRV:["Trivandrum","India",2], AMD:["Ahmedabad","India",2],
+PNQ:["Pune","India",2], GOI:["Goa","India",2], JAI:["Jaipur","India",2],
+LKO:["Lucknow","India",2], KHI:["Karachi","Pakistan",2], LHE:["Lahore","Pakistan",2],
+ISB:["Islamabad","Pakistan",2], IKA:["Tehran","Iran",2],
+ALA:["Almaty","Kazakhstan",2], TAS:["Tashkent","Uzbekistan",2], TBS:["Tbilisi","Georgia",2],
+GYD:["Baku","Azerbaijan",2], EVN:["Yerevan","Armenia",2], ULN:["Ulaanbaatar","Mongolia",2],
+BEY:["Beirut","Lebanon",2],
+/* — Pacific tertiary — */
+OOL:["Gold Coast","Australia",2], CNS:["Cairns","Australia",2], HBA:["Hobart","Australia",2],
+CBR:["Canberra","Australia",2], DRW:["Darwin","Australia",2], TSV:["Townsville","Australia",2],
+ZQN:["Queenstown","NZ",2], WLG:["Wellington","NZ",2], NAN:["Nadi","Fiji",2],
+PPT:["Tahiti","French Polynesia",2], NOU:["Nouméa","New Caledonia",2],
+GUM:["Guam","Guam",2],
+/* — Africa tertiary — */
+AGA:["Agadir","Morocco",2], FEZ:["Fez","Morocco",2], TNG:["Tangier","Morocco",2],
+ORN:["Oran","Algeria",2], MIR:["Monastir","Tunisia",2], DJE:["Djerba","Tunisia",2],
+HRG:["Hurghada","Egypt",2], SSH:["Sharm El Sheikh","Egypt",2], LXR:["Luxor","Egypt",2],
+ASW:["Aswan","Egypt",2],
+ACC:["Accra","Ghana",2], ABJ:["Abidjan","Ivory Coast",2], ABV:["Abuja","Nigeria",2],
+MBA:["Mombasa","Kenya",2], EBB:["Entebbe","Uganda",2], KGL:["Kigali","Rwanda",2],
+JRO:["Kilimanjaro","Tanzania",2], DAR:["Dar es Salaam","Tanzania",2], ZNZ:["Zanzibar","Tanzania",2],
+DUR:["Durban","South Africa",2], PLZ:["Port Elizabeth","South Africa",2],
+LUN:["Lusaka","Zambia",2], HRE:["Harare","Zimbabwe",2], MRU:["Mauritius","Mauritius",2],
+SEZ:["Seychelles","Seychelles",2], TNR:["Antananarivo","Madagascar",2],
+LAD:["Luanda","Angola",2], MPM:["Maputo","Mozambique",2], GBE:["Gaborone","Botswana",2],
+WDH:["Windhoek","Namibia",2], LLW:["Lilongwe","Malawi",2], DLA:["Douala","Cameroon",2],
+NSI:["Yaoundé","Cameroon",2], LBV:["Libreville","Gabon",2], FIH:["Kinshasa","DR Congo",2],
+/* — Americas tertiary — */
+YEG:["Edmonton","Canada",2], YOW:["Ottawa","Canada",2], YHZ:["Halifax","Canada",2],
+YWG:["Winnipeg","Canada",2], YQB:["Quebec City","Canada",2], YYJ:["Victoria","Canada",2],
+PVR:["Puerto Vallarta","Mexico",2], SJD:["Los Cabos","Mexico",2], TIJ:["Tijuana","Mexico",2],
+CZM:["Cozumel","Mexico",2], MID:["Mérida","Mexico",2], OAX:["Oaxaca","Mexico",2],
+ACA:["Acapulco","Mexico",2], MZT:["Mazatlán","Mexico",2], BJX:["León","Mexico",2],
+QRO:["Querétaro","Mexico",2],
+FOR:["Fortaleza","Brazil",2], REC:["Recife","Brazil",2], SSA:["Salvador","Brazil",2],
+CWB:["Curitiba","Brazil",2], POA:["Porto Alegre","Brazil",2], MAO:["Manaus","Brazil",2],
+BEL:["Belém","Brazil",2], FLN:["Florianópolis","Brazil",2], NAT:["Natal","Brazil",2],
+AEP:["Buenos Aires Aeroparque","Argentina",2], COR:["Córdoba","Argentina",2],
+MDZ:["Mendoza","Argentina",2], BRC:["Bariloche","Argentina",2], USH:["Ushuaia","Argentina",2],
+MDE:["Medellín","Colombia",2], CTG:["Cartagena","Colombia",2], CLO:["Cali","Colombia",2],
+BAQ:["Barranquilla","Colombia",2],
+UIO:["Quito","Ecuador",2], GYE:["Guayaquil","Ecuador",2],
+CUZ:["Cusco","Peru",2], AQP:["Arequipa","Peru",2],
+LPB:["La Paz","Bolivia",2], VVI:["Santa Cruz","Bolivia",2],
+ASU:["Asunción","Paraguay",2], MVD:["Montevideo","Uruguay",2],
+PTY:["Panama City","Panama",2], SJO:["San José","Costa Rica",2], LIR:["Liberia CR","Costa Rica",2],
+GUA:["Guatemala City","Guatemala",2], SAL:["San Salvador","El Salvador",2],
+TGU:["Tegucigalpa","Honduras",2], SAP:["San Pedro Sula","Honduras",2],
+MGA:["Managua","Nicaragua",2], BZE:["Belize City","Belize",2],
+HAV:["Havana","Cuba",2], NAS:["Nassau","Bahamas",2], MBJ:["Montego Bay","Jamaica",2],
+KIN:["Kingston","Jamaica",2], PAP:["Port-au-Prince","Haiti",2],
+SDQ:["Santo Domingo","Dom. Rep.",2], PUJ:["Punta Cana","Dom. Rep.",2],
+AUA:["Aruba","Aruba",2], CUR:["Curaçao","Curaçao",2], BON:["Bonaire","Bonaire",2],
+SXM:["Sint Maarten","Sint Maarten",2], BGI:["Bridgetown","Barbados",2],
+POS:["Port of Spain","Trinidad",2], GND:["Grenada","Grenada",2],
+ANU:["Antigua","Antigua",2], SLU:["St. Lucia","St. Lucia",2],
+GCM:["Grand Cayman","Cayman Is.",2], EIS:["Tortola","BVI",2],
+
+/* ─── TIER 3: LUDICROUS + PLAID (regional & obscure, ~70% international) ─── */
+/* — US regional — */
+ABI:["Abilene","USA",3], ADQ:["Kodiak","USA",3], AKN:["King Salmon","USA",3],
+BET:["Bethel","USA",3], BFF:["Scottsbluff","USA",3], BJI:["Bemidji","USA",3],
+BKG:["Branson","USA",3], BRD:["Brainerd","USA",3], BRO:["Brownsville","USA",3],
+BRW:["Utqiagvik","USA",3], BTM:["Butte","USA",3], CAK:["Akron","USA",3],
+CDC:["Cedar City","USA",3], CDV:["Cordova","USA",3], CGI:["Cape Girardeau","USA",3],
+CIC:["Chico","USA",3], CLD:["Carlsbad","USA",3], COD:["Cody","USA",3],
+CPR:["Casper","USA",3], CSG:["Columbus GA","USA",3], DBQ:["Dubuque","USA",3],
+DDC:["Dodge City","USA",3], DIK:["Dickinson","USA",3], DLG:["Dillingham","USA",3],
+DLH:["Duluth","USA",3], DRT:["Del Rio","USA",3], DUT:["Unalaska","USA",3],
+EAR:["Kearney","USA",3], EAT:["Wenatchee","USA",3], EAU:["Eau Claire","USA",3],
+EKO:["Elko","USA",3], ENA:["Kenai","USA",3], ERI:["Erie","USA",3],
+ESC:["Escanaba","USA",3], FMN:["Farmington","USA",3], FNL:["Fort Collins","USA",3],
+FOD:["Fort Dodge","USA",3], FOE:["Topeka","USA",3], GCC:["Gillette","USA",3],
+GCK:["Garden City","USA",3], GCN:["Grand Canyon","USA",3], GLH:["Greenville MS","USA",3],
+GST:["Gustavus","USA",3], GUC:["Gunnison","USA",3],
+HHH:["Hilton Head","USA",3], HIB:["Hibbing","USA",3], HOB:["Hobbs","USA",3],
+HOM:["Homer","USA",3], HOT:["Hot Springs","USA",3], HVN:["New Haven","USA",3],
+HVR:["Havre","USA",3], HYS:["Hays","USA",3], IAG:["Niagara Falls","USA",3],
+IFP:["Bullhead City","USA",3], IMT:["Iron Mountain","USA",3], INL:["International Falls","USA",3],
+IPT:["Williamsport","USA",3], ISN:["Williston","USA",3],
+JHM:["Kapalua","USA",3], JST:["Johnstown","USA",3],
+LAR:["Laramie","USA",3], LBE:["Latrobe","USA",3], LBF:["North Platte","USA",3],
+LBL:["Liberal","USA",3], LEB:["Lebanon NH","USA",3], LMT:["Klamath Falls","USA",3],
+LNS:["Lancaster","USA",3], LWB:["Lewisburg","USA",3], LWS:["Lewiston ID","USA",3],
+MCW:["Mason City","USA",3], MDT:["Harrisburg","USA",3], MKG:["Muskegon","USA",3],
+MKL:["Jackson TN","USA",3], MOD:["Modesto","USA",3], MSL:["Muscle Shoals","USA",3],
+MSS:["Massena","USA",3], MTH:["Marathon FL","USA",3], MTJ:["Montrose","USA",3],
+MWH:["Moses Lake","USA",3],
+OGD:["Ogden","USA",3], OGS:["Ogdensburg","USA",3], OME:["Nome","USA",3],
+OTH:["North Bend","USA",3], OTZ:["Kotzebue","USA",3], PBG:["Plattsburgh","USA",3],
+PDT:["Pendleton","USA",3], PGA:["Page","USA",3], PGD:["Punta Gorda","USA",3],
+PGV:["Greenville NC","USA",3], PHF:["Newport News","USA",3], PIH:["Pocatello","USA",3],
+PIR:["Pierre","USA",3], PLN:["Pellston","USA",3], PRC:["Prescott","USA",3],
+PSE:["Ponce","USA",3], PSG:["Petersburg","USA",3], PUB:["Pueblo","USA",3],
+PUW:["Pullman","USA",3], RDD:["Redding","USA",3], RHI:["Rhinelander","USA",3],
+RIW:["Riverton","USA",3], RKS:["Rock Springs","USA",3], ROW:["Roswell","USA",3],
+RST:["Rochester MN","USA",3], SBM:["Sheboygan","USA",3], SCC:["Deadhorse","USA",3],
+SCE:["State College","USA",3], SDY:["Sidney MT","USA",3], SGU:["St. George","USA",3],
+SHR:["Sheridan","USA",3], SIT:["Sitka","USA",3], SOW:["Show Low","USA",3],
+SPS:["Wichita Falls","USA",3], TEX:["Telluride","USA",3], TUP:["Tupelo","USA",3],
+TXK:["Texarkana","USA",3], UIN:["Quincy","USA",3], VEL:["Vernal","USA",3],
+WRG:["Wrangell","USA",3], WYS:["West Yellowstone","USA",3],
+YAK:["Yakutat","USA",3], YNG:["Youngstown","USA",3], YUM:["Yuma","USA",3],
+ALW:["Walla Walla","USA",3], ALO:["Waterloo","USA",3], ART:["Watertown NY","USA",3],
+ATY:["Watertown SD","USA",3], BFD:["Bradford","USA",3],
+CHQ:["Chania","Greece",2],
+/* — Europe regional/obscure — */
+AAR2:["",,0], FMM:["Memmingen","Germany",3], NRN:["Weeze","Germany",3],
+HHN:["Frankfurt-Hahn","Germany",3], FMO:["Münster","Germany",3], PAD:["Paderborn","Germany",3],
+FKB:["Karlsruhe","Germany",3], FDH:["Friedrichshafen","Germany",3], ERF:["Erfurt","Germany",3],
+SCN:["Saarbrücken","Germany",3], NUE2:["",,0],
+ACH:["Altenrhein","Switzerland",3], LUG:["Lugano","Switzerland",3],
+BOH:["Bournemouth","UK",3], EXT:["Exeter","UK",3], NWI:["Norwich","UK",3],
+GCI:["Guernsey","UK",3], KOI:["Kirkwall","UK",3], SYY:["Stornoway","UK",3],
+IOM:["Isle of Man","Isle of Man",3], DSA:["Doncaster","UK",3], HUY:["Humberside","UK",3],
+NQY:["Newquay","UK",3], LDY:["Derry","UK",3],
+EGC:["Bergerac","France",3], CFE:["Clermont-Ferrand","France",3], FSC:["Figari","France",3],
+AJA:["Ajaccio","France",3], BIA:["Bastia","France",3], BIQ:["Biarritz","France",3],
+CCF:["Carcassonne","France",3], PGF:["Perpignan","France",3], RNS:["Rennes","France",3],
+BES:["Brest","France",3], CFR:["Caen","France",3], EBU:["Saint-Étienne","France",3],
+LDE:["Lourdes","France",3], NCY:["Annecy","France",3],
+LLA:["Luleå","Sweden",3], UME:["Umeå","Sweden",3], NYO:["Stockholm Skavsta","Sweden",3],
+SDL:["Sundsvall","Sweden",3], KRN:["Kiruna","Sweden",3], OSD:["Östersund","Sweden",3],
+KSU:["Kristiansund","Norway",3], AES:["Ålesund","Norway",3], MOL:["Molde","Norway",3],
+EVE:["Harstad/Narvik","Norway",3], KKN:["Kirkenes","Norway",3], ALF:["Alta","Norway",3],
+BOO:["Bodø","Norway",3], TRF:["Sandefjord","Norway",3],
+JYV:["Jyväskylä","Finland",3], KUO:["Kuopio","Finland",3], JOE:["Joensuu","Finland",3],
+IVL:["Ivalo","Finland",3], KEM:["Kemi","Finland",3], KAJ:["Kajaani","Finland",3],
+AEY:["Akureyri","Iceland",3], EGS:["Egilsstaðir","Iceland",3],
+SCQ:["Santiago Compostela","Spain",3], OVD:["Oviedo","Spain",3], EAS:["San Sebastián","Spain",3],
+LCG:["A Coruña","Spain",3], SDR:["Santander","Spain",3], VGO:["Vigo","Spain",3],
+REU:["Reus","Spain",3], GRX:["Granada","Spain",3], XRY:["Jerez","Spain",3],
+ZAZ:["Zaragoza","Spain",3], ODB:["Córdoba ES","Spain",3], BJZ:["Badajoz","Spain",3],
+AHO:["Alghero","Italy",3], OLB:["Olbia","Italy",3], REG:["Reggio Calabria","Italy",3],
+PEG:["Perugia","Italy",3], PSR:["Pescara","Italy",3], RMI:["Rimini","Italy",3],
+CUF:["Cuneo","Italy",3], FOG:["Foggia","Italy",3], AOI:["Ancona","Italy",3],
+TRS:["Trieste","Italy",3], GOA:["Genoa","Italy",3], BDS:["Brindisi","Italy",3],
+SUF:["Lamezia Terme","Italy",3], LMP:["Lampedusa","Italy",3], PNL:["Pantelleria","Italy",3],
+KGS:["Kos","Greece",3], JSI:["Skiathos","Greece",3], JKH:["Chios","Greece",3],
+JNX:["Naxos","Greece",3], SMI:["Samos","Greece",3], EFL:["Kefalonia","Greece",3],
+PVK:["Preveza","Greece",3], KVA:["Kavala","Greece",3], ZTH:["Zakynthos","Greece",3],
+KLX:["Kalamata","Greece",3],
+ADA:["Adana","Turkey",3], GZT:["Gaziantep","Turkey",3], TZX:["Trabzon","Turkey",3],
+KYA:["Konya","Turkey",3], ASR:["Kayseri","Turkey",3], ERZ:["Erzurum","Turkey",3],
+VAN:["Van","Turkey",3], DIY:["Diyarbakır","Turkey",3], EZS:["Elazığ","Turkey",3],
+PDV:["Plovdiv","Bulgaria",3], TSR:["Timișoara","Romania",3], CLJ:["Cluj-Napoca","Romania",3],
+IAS:["Iași","Romania",3], CND:["Constanța","Romania",3], SBZ:["Sibiu","Romania",3],
+BCM:["Bacău","Romania",3], CRA:["Craiova","Romania",3], SUJ:["Satu Mare","Romania",3],
+RJK:["Rijeka","Croatia",3], ZAD:["Zadar","Croatia",3], PUY:["Pula","Croatia",3],
+OSI:["Osijek","Croatia",3], MBX:["Maribor","Slovenia",3], INI:["Niš","Serbia",3],
+TGD:["Podgorica","Montenegro",3], BNX:["Banja Luka","Bosnia",3], OHD:["Ohrid","N. Macedonia",3],
+RZE:["Rzeszów","Poland",3], BZG:["Bydgoszcz","Poland",3], SZZ:["Szczecin","Poland",3],
+LUZ:["Lublin","Poland",3],
+OSR:["Ostrava","Czechia",3], KSC:["Košice","Slovakia",3], TAT:["Poprad","Slovakia",3],
+DEB:["Debrecen","Hungary",3],
+KIV:["Chișinău","Moldova",3], LWO:["Lviv","Ukraine",3], ODS:["Odesa","Ukraine",3],
+HRK:["Kharkiv","Ukraine",3], DNK:["Dnipro","Ukraine",3], IFO:["Ivano-Frankivsk","Ukraine",3],
+OVB:["Novosibirsk","Russia",3], KRR:["Krasnodar","Russia",3], AER:["Sochi","Russia",3],
+ROV:["Rostov","Russia",3], IKT:["Irkutsk","Russia",3], VVO:["Vladivostok","Russia",3],
+KHV:["Khabarovsk","Russia",3], GOJ:["Nizhny Novgorod","Russia",3], KUF:["Samara","Russia",3],
+UFA:["Ufa","Russia",3], MMK:["Murmansk","Russia",3], ARH:["Arkhangelsk","Russia",3],
+KJA:["Krasnoyarsk","Russia",3], NQZ:["Astana","Kazakhstan",3], CIT:["Shymkent","Kazakhstan",3],
+AKX:["Aktobe","Kazakhstan",3], FRU:["Bishkek","Kyrgyzstan",3], DYU:["Dushanbe","Tajikistan",3],
+ASB:["Ashgabat","Turkmenistan",3], SCO:["Aktau","Kazakhstan",3]
+};
+delete AIRPORTS.AAR2; delete AIRPORTS.NUE2;
+
+/* — Asia obscure (Tier 3) — */
+Object.assign(AIRPORTS, {
+KKJ:["Kitakyushu","Japan",3], TAK:["Takamatsu","Japan",3], MYJ:["Matsuyama","Japan",3],
+KMQ:["Komatsu","Japan",3], TOY:["Toyama","Japan",3], AOJ:["Aomori","Japan",3],
+FSZ:["Shizuoka","Japan",3], OIT:["Oita","Japan",3], KCZ:["Kochi","Japan",3],
+TKS:["Tokushima","Japan",3], ASJ:["Amami","Japan",3], MMY:["Miyako","Japan",3],
+ISG:["Ishigaki","Japan",3], NGS2:["",,0],
+TSA:["Taipei Songshan","Taiwan",3], MZG:["Magong","Taiwan",3], RMQ:["Taichung","Taiwan",3],
+TNN:["Tainan","Taiwan",3], TTT:["Taitung","Taiwan",3],
+KWJ:["Gwangju","South Korea",3], USN:["Ulsan","South Korea",3], CJJ:["Cheongju","South Korea",3],
+MWX:["Muan","South Korea",3], RSU:["Yeosu","South Korea",3],
+URC:["Urumqi","China",3], LHW:["Lanzhou","China",3], INC:["Yinchuan","China",3],
+TNA:["Jinan","China",3], CGO:["Zhengzhou","China",3], HET:["Hohhot","China",3],
+CSX:["Changsha","China",3], KWE:["Guiyang","China",3], NNG:["Nanning","China",3],
+FOC:["Fuzhou","China",3], WUX:["Wuxi","China",3], NGB:["Ningbo","China",3],
+WNZ:["Wenzhou","China",3], ZUH:["Zhuhai","China",3], SWA:["Shantou","China",3],
+LXA:["Lhasa","China",3], DLU:["Dali","China",3], LJG:["Lijiang","China",3],
+JHG:["Jinghong","China",3], SYX:["Sanya","China",3], HAK:["Haikou","China",3],
+HFE:["Hefei","China",3], TGO:["Tongliao","China",3],
+PPS:["Puerto Princesa","Philippines",3], TAG:["Tagbilaran","Philippines",3],
+BCD:["Bacolod","Philippines",3], ILO:["Iloilo","Philippines",3], KLO:["Kalibo","Philippines",3],
+MPH:["Caticlan","Philippines",3], TAC:["Tacloban","Philippines",3], ZAM:["Zamboanga","Philippines",3],
+CGY:["Cagayan de Oro","Philippines",3], GES:["General Santos","Philippines",3],
+PKR:["Pokhara","Nepal",3], BIR:["Biratnagar","Nepal",3],
+BTU:["Bintulu","Malaysia",3], TWU:["Tawau","Malaysia",3], MYY:["Miri","Malaysia",3],
+SBW:["Sibu","Malaysia",3], TGG:["Kuala Terengganu","Malaysia",3], KBR:["Kota Bharu","Malaysia",3],
+IPH:["Ipoh","Malaysia",3], JHB:["Johor Bahru","Malaysia",3],
+HDY:["Hat Yai","Thailand",3], KBV:["Krabi","Thailand",3], URT:["Surat Thani","Thailand",3],
+NST:["Nakhon Si Thammarat","Thailand",3], TST:["Trang","Thailand",3], CEI:["Chiang Rai","Thailand",3],
+UTH:["Udon Thani","Thailand",3], KOP:["Nakhon Phanom","Thailand",3],
+HUI:["Hue","Vietnam",3], CXR:["Nha Trang","Vietnam",3], PQC:["Phu Quoc","Vietnam",3],
+DLI:["Da Lat","Vietnam",3], BMV:["Buôn Ma Thuột","Vietnam",3], VCS:["Côn Đảo","Vietnam",3],
+HPH:["Hai Phong","Vietnam",3],
+SIN2:["",,0],
+LBJ:["Labuan Bajo","Indonesia",3], LOP:["Lombok","Indonesia",3], SOC:["Solo","Indonesia",3],
+SRG:["Semarang","Indonesia",3], MDC:["Manado","Indonesia",3], UPG:["Makassar","Indonesia",3],
+BPN:["Balikpapan","Indonesia",3], PLM:["Palembang","Indonesia",3], PKU:["Pekanbaru","Indonesia",3],
+BTH:["Batam","Indonesia",3], PDG:["Padang","Indonesia",3], BTJ:["Banda Aceh","Indonesia",3],
+KOE:["Kupang","Indonesia",3], DJJ:["Jayapura","Indonesia",3], TIM:["Timika","Indonesia",3],
+TRV2:["",,0],
+COK2:["",,0],
+IXC:["Chandigarh","India",3], IXM:["Madurai","India",3], TRZ:["Tiruchirappalli","India",3],
+IXB:["Bagdogra","India",3], IXR:["Ranchi","India",3], PAT:["Patna","India",3],
+VNS:["Varanasi","India",3], IDR:["Indore","India",3], BBI:["Bhubaneswar","India",3],
+NAG:["Nagpur","India",3], CJB:["Coimbatore","India",3], VTZ:["Vizag","India",3],
+GAU:["Guwahati","India",3], IXJ:["Jammu","India",3], SXR:["Srinagar","India",3],
+DED:["Dehradun","India",3], DHM:["Dharamsala","India",3], GAY:["Gaya","India",3],
+ATQ:["Amritsar","India",3], BHO:["Bhopal","India",3], UDR:["Udaipur","India",3],
+JDH:["Jodhpur","India",3], CJB2:["",,0],
+PBH:["Paro","Bhutan",3], MGZ:["Myeik","Myanmar",3], NYU:["Bagan","Myanmar",3],
+HRI:["Hingurakgoda","Sri Lanka",3], GAN:["Gan","Maldives",3],
+CGP:["Chittagong","Bangladesh",3], JSR:["Jessore","Bangladesh",3],
+ISU:["Sulaymaniyah","Iraq",3], EBL:["Erbil","Iraq",3], BSR:["Basra","Iraq",3], BGW:["Baghdad","Iraq",3],
+DAM:["Damascus","Syria",3], ALP:["Aleppo","Syria",3],
+SHJ:["Sharjah","UAE",3], RKT:["Ras Al Khaimah","UAE",3], AAN:["Al Ain","UAE",3],
+SAH:["Sanaa","Yemen",3], ADE:["Aden","Yemen",3],
+DMM:["Dammam","Saudi Arabia",3], MED:["Medina","Saudi Arabia",3], AHB:["Abha","Saudi Arabia",3],
+TUU:["Tabuk","Saudi Arabia",3], AQJ:["Aqaba","Jordan",3],
+LCA:["Larnaca","Cyprus",3], PFO:["Paphos","Cyprus",3],
+HER2:["",,0],
+KZN2:["",,0],
+NBC:["Naberezhnye Chelny","Russia",3], CEK:["Chelyabinsk","Russia",3], BAX:["Barnaul","Russia",3],
+YKS:["Yakutsk","Russia",3], OMS:["Omsk","Russia",3], TJM:["Tyumen","Russia",3],
+PKC:["Petropavlovsk","Russia",3], UUS:["Yuzhno-Sakhalinsk","Russia",3],
+NMA:["Namangan","Uzbekistan",3], SKD:["Samarkand","Uzbekistan",3], BHK:["Bukhara","Uzbekistan",3],
+OSS:["Osh","Kyrgyzstan",3], LBD:["Khujand","Tajikistan",3]
+});
+delete AIRPORTS.NGS2; delete AIRPORTS.SIN2; delete AIRPORTS.TRV2;
+delete AIRPORTS.COK2; delete AIRPORTS.CJB2; delete AIRPORTS.HER2; delete AIRPORTS.KZN2;
+
+/* — Africa & Middle East obscure (Tier 3) — */
+Object.assign(AIRPORTS, {
+TLP:["Tlemcen","Algeria",3], CZL:["Constantine","Algeria",3], BJA:["Béjaïa","Algeria",3],
+BSK:["Biskra","Algeria",3], TMR:["Tamanrasset","Algeria",3], OUD:["Oujda","Morocco",3],
+NDR:["Nador","Morocco",3], RBA:["Rabat","Morocco",3], OZZ:["Ouarzazate","Morocco",3],
+TBJ:["Tabarka","Tunisia",3], TOE:["Tozeur","Tunisia",3],
+BEN:["Benghazi","Libya",3], MJI:["Tripoli","Libya",3], SEB:["Sabha","Libya",3],
+KRT:["Khartoum","Sudan",3], JUB:["Juba","South Sudan",3], ASM:["Asmara","Eritrea",3],
+JIB:["Djibouti","Djibouti",3], MGQ:["Mogadishu","Somalia",3], HGA:["Hargeisa","Somaliland",3],
+NDJ:["N'Djamena","Chad",3], NIM:["Niamey","Niger",3], OUA:["Ouagadougou","Burkina Faso",3],
+BKO:["Bamako","Mali",3], KAN:["Kano","Nigeria",3], PHC:["Port Harcourt","Nigeria",3],
+LFW:["Lomé","Togo",3], COO:["Cotonou","Benin",3], BJL:["Banjul","Gambia",3],
+NKC:["Nouakchott","Mauritania",3], FNA:["Freetown","Sierra Leone",3], ROB:["Monrovia","Liberia",3],
+BZV:["Brazzaville","Congo",3], FBM:["Lubumbashi","DR Congo",3], GOM:["Goma","DR Congo",3],
+BGF:["Bangui","CAR",3], SSG:["Malabo","Eq. Guinea",3], TMS:["São Tomé","São Tomé",3],
+BJM:["Bujumbura","Burundi",3], MWZ:["Mwanza","Tanzania",3], KIS:["Kisumu","Kenya",3],
+NLA:["Ndola","Zambia",3], LVI:["Livingstone","Zambia",3], VFA:["Victoria Falls","Zimbabwe",3],
+BUQ:["Bulawayo","Zimbabwe",3], BLZ:["Blantyre","Malawi",3], TET:["Tete","Mozambique",3],
+BEW:["Beira","Mozambique",3], MUB:["Maun","Botswana",3], FRW:["Francistown","Botswana",3],
+WVB:["Walvis Bay","Namibia",3], BFN:["Bloemfontein","South Africa",3],
+GRJ:["George","South Africa",3], MQP:["Nelspruit","South Africa",3], ELS:["East London","South Africa",3],
+RUN:["Réunion","Réunion",3], RRG:["Rodrigues","Mauritius",3], MJN:["Mahajanga","Madagascar",3],
+NOS:["Nosy Be","Madagascar",3], MRE:["Mara Lodges","Kenya",3],
+TZA:["Belize Toledo","Belize",3],
+});
+
+/* — Americas obscure (Tier 3) — */
+Object.assign(AIRPORTS, {
+PMW:["Palmas","Brazil",3], JPA:["João Pessoa","Brazil",3], AJU:["Aracaju","Brazil",3],
+MCZ:["Maceió","Brazil",3], THE:["Teresina","Brazil",3], SLZ:["São Luís","Brazil",3],
+CGH:["São Paulo Congonhas","Brazil",3], SDU:["Rio Santos Dumont","Brazil",3],
+VCP:["Campinas","Brazil",3], NVT:["Navegantes","Brazil",3], IOS:["Ilhéus","Brazil",3],
+BPS:["Porto Seguro","Brazil",3], CZS:["Cruzeiro do Sul","Brazil",3], RBR:["Rio Branco","Brazil",3],
+PVH:["Porto Velho","Brazil",3], BVB:["Boa Vista","Brazil",3], STM:["Santarém","Brazil",3],
+MAB:["Marabá","Brazil",3], IMP:["Imperatriz","Brazil",3], LDB:["Londrina","Brazil",3],
+MGF:["Maringá","Brazil",3], CXJ:["Caxias do Sul","Brazil",3], XAP:["Chapecó","Brazil",3],
+JOI:["Joinville","Brazil",3], MCP:["Macapá","Brazil",3], CGB:["Cuiabá","Brazil",3],
+CGR:["Campo Grande","Brazil",3], GYN:["Goiânia","Brazil",3], UDI:["Uberlândia","Brazil",3],
+RAO:["Ribeirão Preto","Brazil",3], SJP:["São José do Rio Preto","Brazil",3],
+REL:["Trelew","Argentina",3], FTE:["El Calafate","Argentina",3], BHI:["Bahía Blanca","Argentina",3],
+NQN:["Neuquén","Argentina",3], MDQ:["Mar del Plata","Argentina",3], TUC:["Tucumán","Argentina",3],
+SLA:["Salta","Argentina",3], JUJ:["Jujuy","Argentina",3], IGR:["Iguazú","Argentina",3],
+RES:["Resistencia","Argentina",3], RGL:["Río Gallegos","Argentina",3], CRD:["Comodoro Rivadavia","Argentina",3],
+ROS:["Rosario","Argentina",3],
+PMC:["Puerto Montt","Chile",3], CCP:["Concepción","Chile",3], ARI:["Arica","Chile",3],
+IQQ:["Iquique","Chile",3], ANF:["Antofagasta","Chile",3], CJC:["Calama","Chile",3],
+ZOS:["Osorno","Chile",3], BBA:["Balmaceda","Chile",3], PUQ:["Punta Arenas","Chile",3],
+ZAL:["Valdivia","Chile",3], LSC:["La Serena","Chile",3], IPC:["Easter Island","Chile",3],
+GPS:["Galápagos","Ecuador",3], TBP:["Tumbes","Peru",3], CIX:["Chiclayo","Peru",3],
+TRU:["Trujillo","Peru",3], IQT:["Iquitos","Peru",3], PEM:["Puerto Maldonado","Peru",3],
+AYP:["Ayacucho","Peru",3], JUL:["Juliaca","Peru",3], TCQ:["Tacna","Peru",3],
+CJA:["Cajamarca","Peru",3], PIU:["Piura","Peru",3], TPP:["Tarapoto","Peru",3],
+NVA:["Neiva","Colombia",3], PEI:["Pereira","Colombia",3], BGA:["Bucaramanga","Colombia",3],
+CUC:["Cúcuta","Colombia",3], ADZ:["San Andrés","Colombia",3], MTR:["Montería","Colombia",3],
+SMR:["Santa Marta","Colombia",3], LET:["Leticia","Colombia",3], EOH:["Medellín Olaya","Colombia",3],
+RCH:["Riohacha","Colombia",3], VVC:["Villavicencio","Colombia",3],
+MAR:["Maracaibo","Venezuela",3], BLA:["Barcelona VZ","Venezuela",3], PMV:["Porlamar","Venezuela",3],
+LMM:["Los Mochis","Mexico",3], CUU:["Chihuahua","Mexico",3], TRC:["Torreón","Mexico",3],
+DGO:["Durango MX","Mexico",3], ZCL:["Zacatecas","Mexico",3], AGU:["Aguascalientes","Mexico",3],
+MLM:["Morelia","Mexico",3], TGZ:["Tuxtla Gutiérrez","Mexico",3], CTM:["Chetumal","Mexico",3],
+PXM:["Puerto Escondido","Mexico",3], HUX:["Huatulco","Mexico",3], TAP:["Tapachula","Mexico",3],
+VSA:["Villahermosa","Mexico",3], VER:["Veracruz","Mexico",3], CPE:["Campeche","Mexico",3],
+CJS:["Ciudad Juárez","Mexico",3], MXL:["Mexicali","Mexico",3], REX:["Reynosa","Mexico",3],
+MAM:["Matamoros","Mexico",3], TAM:["Tampico","Mexico",3], CUL:["Culiacán","Mexico",3],
+HMO:["Hermosillo","Mexico",3], LAP:["La Paz MX","Mexico",3], MZT2:["",,0],
+SAL2:["",,0], FRS:["Flores","Guatemala",3], RTB:["Roatán","Honduras",3],
+LCE:["La Ceiba","Honduras",3], DAV:["David","Panama",3], BOC:["Bocas del Toro","Panama",3],
+TMU:["Tambor","Costa Rica",3], LMM2:["",,0],
+YQT:["Thunder Bay","Canada",3], YQM:["Moncton","Canada",3], YSJ:["Saint John","Canada",3],
+YYT:["St. John's","Canada",3], YXY:["Whitehorse","Canada",3], YZF:["Yellowknife","Canada",3],
+YFB:["Iqaluit","Canada",3], YQR:["Regina","Canada",3], YXE:["Saskatoon","Canada",3],
+YQQ:["Comox","Canada",3], YXS:["Prince George","Canada",3], YQR2:["",,0],
+YDF:["Deer Lake","Canada",3], YGK:["Kingston ON","Canada",3], YXU:["London ON","Canada",3],
+YQG:["Windsor","Canada",3], YHM:["Hamilton","Canada",3], YQB2:["",,0],
+NAS2:["",,0],
+GEO:["Georgetown","Guyana",3], PBM:["Paramaribo","Suriname",3], CAY:["Cayenne","French Guiana",3],
+FDF:["Fort-de-France","Martinique",3], PTP:["Pointe-à-Pitre","Guadeloupe",3],
+STT2:["",,0], SDQ2:["",,0], DOM:["Dominica","Dominica",3], SVD:["St. Vincent","St. Vincent",3],
+EIS2:["",,0], NEV:["Nevis","St. Kitts",3], SKB:["St. Kitts","St. Kitts",3],
+TAB:["Tobago","Trinidad",3], AXA:["Anguilla","Anguilla",3], MYS:["Moyobamba","Peru",3]
+});
+delete AIRPORTS.MZT2; delete AIRPORTS.SAL2; delete AIRPORTS.LMM2;
+delete AIRPORTS.YQR2; delete AIRPORTS.YQB2; delete AIRPORTS.NAS2;
+delete AIRPORTS.STT2; delete AIRPORTS.SDQ2; delete AIRPORTS.EIS2;
+
+/* — Pacific & Oceania obscure (Tier 3) — */
+Object.assign(AIRPORTS, {
+MIM:["Merimbula","Australia",3], MGB:["Mount Gambier","Australia",3], NTL:["Newcastle AU","Australia",3],
+ROK:["Rockhampton","Australia",3], MKY:["Mackay","Australia",3], HTI:["Hamilton Island","Australia",3],
+PPP:["Proserpine","Australia",3], BME:["Broome","Australia",3], KGI:["Kalgoorlie","Australia",3],
+LST:["Launceston","Australia",3], AVV:["Avalon","Australia",3], ASP:["Alice Springs","Australia",3],
+AYQ:["Uluru","Australia",3], KGC:["Kingscote","Australia",3], PHE:["Port Hedland","Australia",3],
+KTA:["Karratha","Australia",3], MCY:["Sunshine Coast","Australia",3], BNK:["Ballina","Australia",3],
+CFS:["Coffs Harbour","Australia",3], TMW:["Tamworth","Australia",3], DBO:["Dubbo","Australia",3],
+WGA:["Wagga Wagga","Australia",3], MQL:["Mildura","Australia",3], LDH:["Lord Howe","Australia",3],
+ROT:["Rotorua","NZ",3], NPL:["New Plymouth","NZ",3], NPE:["Napier","NZ",3],
+NSN:["Nelson","NZ",3], DUD:["Dunedin","NZ",3], IVC:["Invercargill","NZ",3],
+GIS:["Gisborne","NZ",3], PMR:["Palmerston North","NZ",3], TRG:["Tauranga","NZ",3],
+HLZ:["Hamilton","NZ",3], TUO:["Taupo","NZ",3], BHE:["Blenheim","NZ",3],
+SUV:["Suva","Fiji",3], LBS:["Labasa","Fiji",3], SVU:["Savusavu","Fiji",3],
+TBU:["Nukuʻalofa","Tonga",3], APW:["Apia","Samoa",3], PPG:["Pago Pago","Am. Samoa",3],
+POM:["Port Moresby","PNG",3], LAE:["Lae","PNG",3], HGU:["Mount Hagen","PNG",3],
+HIR:["Honiara","Solomons",3], VLI:["Port Vila","Vanuatu",3], LIF:["Lifou","New Caledonia",3],
+GZO:["Gizo","Solomons",3], FUN:["Funafuti","Tuvalu",3], TRW:["Tarawa","Kiribati",3],
+INU:["Nauru","Nauru",3], MAJ:["Majuro","Marshall Is.",3], PNI:["Pohnpei","FSM",3],
+KSA:["Kosrae","FSM",3], ROR:["Koror","Palau",3], YAP:["Yap","FSM",3],
+SPN:["Saipan","N. Marianas",3], TKK:["Chuuk","FSM",3], TIA2:["",,0],
+KOR:["Komo","PNG",3], WWK:["Wewak","PNG",3], RAB:["Rabaul","PNG",3], MFM2:["",,0],
+RAR:["Rarotonga","Cook Is.",3], AIT:["Aitutaki","Cook Is.",3], EUA:["Eua","Tonga",3],
+HBA2:["",,0], NIU:["Niue","Niue",3], FUT:["Futuna","Wallis & Futuna",3],
+WLS:["Wallis","Wallis & Futuna",3], BOB:["Bora Bora","French Polynesia",3],
+RGI:["Rangiroa","French Polynesia",3], UAH:["Ua Huka","French Polynesia",3],
+NUK:["Nukutavake","French Polynesia",3], HUH:["Huahine","French Polynesia",3],
+MOZ:["Moorea","French Polynesia",3]
+});
+delete AIRPORTS.TIA2; delete AIRPORTS.MFM2; delete AIRPORTS.HBA2;
+
+/* ═══════════════════════════════════════════════════════════════════════
+   GAME LOGIC
+   ═══════════════════════════════════════════════════════════════════════ */
+
+// Build tier pools from AIRPORTS data
+const TIER_POOLS = {1: [], 2: [], 3: []};
+for (const code in AIRPORTS) {
+  const tier = AIRPORTS[code][2];
+  if (TIER_POOLS[tier]) TIER_POOLS[tier].push(code);
+}
+// Sort for deterministic ordering across browsers
+for (const t in TIER_POOLS) TIER_POOLS[t].sort();
+
+const MODE_POOLS = {
+  regular: TIER_POOLS[1],
+  ridiculous: TIER_POOLS[2],
+  ludicrous: TIER_POOLS[3],
+  plaid: TIER_POOLS[3]
+};
+const MODE_LABELS = {regular:"Regular", ridiculous:"Ridiculous", ludicrous:"Ludicrous", plaid:"Plaid"};
+const VALID_CODES = new Set(Object.keys(AIRPORTS));
+
+// FNV-1a string hash for seeding
+function hashStr(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+// Mulberry32 seeded PRNG
+function mulberry32(a) {
+  return function() {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function seededShuffle(arr, seed) {
+  const r = arr.slice();
+  const rng = mulberry32(seed);
+  for (let i = r.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [r[i], r[j]] = [r[j], r[i]];
+  }
+  return r;
+}
+
+// Daily puzzle: deterministic rotation through each tier's pool.
+// Same airport never repeats until the entire pool is exhausted.
+// Plaid uses ludicrous pool but its own seed so playing one doesn't spoil the other.
+const LAUNCH_UTC = Date.UTC(2026, 0, 1); // Jan 1, 2026
+const DAY_MS = 86400000;
+function getDayNumber() {
+  return Math.floor((Date.now() - LAUNCH_UTC) / DAY_MS);
+}
+function getAnswerForMode(mode, dayNum) {
+  const pool = MODE_POOLS[mode];
+  const n = pool.length;
+  if (n === 0) return "AAA";
+  const cycle = Math.floor(dayNum / n);
+  const idx = ((dayNum % n) + n) % n;
+  const seed = hashStr(mode + ":" + cycle);
+  const shuffled = seededShuffle(pool, seed);
+  return shuffled[idx];
+}
+
+// State
+function emptyStats() {
+  return {played:0, won:0, currentStreak:0, maxStreak:0, lastWonDay:-1, dist:[0,0,0,0,0,0]};
+}
+function emptyDaily() { return {day:-1, answer:"", guesses:[], status:"playing"}; }
+let modeStats = {regular:emptyStats(), ridiculous:emptyStats(), ludicrous:emptyStats(), plaid:emptyStats()};
+let modeDaily = {regular:emptyDaily(), ridiculous:emptyDaily(), ludicrous:emptyDaily(), plaid:emptyDaily()};
+let currentMode = "regular";
+let currentInput = "";
+
+function saveAll() {
+  try {
+    localStorage.setItem("airportle:stats:v1", JSON.stringify(modeStats));
+    localStorage.setItem("airportle:daily:v1", JSON.stringify(modeDaily));
+    localStorage.setItem("airportle:mode:v1", currentMode);
+  } catch (e) {}
+}
+function loadAll() {
+  try {
+    const s = localStorage.getItem("airportle:stats:v1");
+    if (s) {
+      const parsed = JSON.parse(s);
+      for (const m of ["regular","ridiculous","ludicrous","plaid"]) {
+        if (parsed[m]) modeStats[m] = Object.assign(emptyStats(), parsed[m]);
+      }
+    }
+    const d = localStorage.getItem("airportle:daily:v1");
+    if (d) {
+      const parsed = JSON.parse(d);
+      for (const m of ["regular","ridiculous","ludicrous","plaid"]) {
+        if (parsed[m]) modeDaily[m] = Object.assign(emptyDaily(), parsed[m]);
+      }
+    }
+    const m = localStorage.getItem("airportle:mode:v1");
+    if (m && MODE_POOLS[m]) currentMode = m;
+  } catch (e) {}
+}
+
+// Sync current mode's daily state with today's puzzle (handles new day)
+function syncDaily(mode) {
+  const dayNum = getDayNumber();
+  const answer = getAnswerForMode(mode, dayNum);
+  const d = modeDaily[mode];
+  if (d.day !== dayNum || d.answer !== answer) {
+    modeDaily[mode] = {day:dayNum, answer:answer, guesses:[], status:"playing"};
+  }
+}
+
+// Two-pass Wordle evaluation
+function evaluate(guess, answer) {
+  const result = ["absent","absent","absent"];
+  const ans = answer.split("");
+  const g = guess.split("");
+  for (let i = 0; i < 3; i++) {
+    if (g[i] === ans[i]) { result[i] = "correct"; ans[i] = null; }
+  }
+  for (let i = 0; i < 3; i++) {
+    if (result[i] === "correct") continue;
+    const j = ans.indexOf(g[i]);
+    if (j !== -1) { result[i] = "present"; ans[j] = null; }
+  }
+  return result;
+}
+// In Plaid: hide hints. Either all green (exact match) or all gray.
+function evaluateForDisplay(guess, answer, mode) {
+  if (mode === "plaid") {
+    return guess === answer
+      ? ["correct","correct","correct"]
+      : ["absent","absent","absent"];
+  }
+  return evaluate(guess, answer);
+}
+
+/* ─── RENDER ─── */
+const boardEl = document.getElementById("board");
+const kbEl = document.getElementById("keyboard");
+const toastEl = document.getElementById("toast");
+const puzzleNumEl = document.getElementById("puzzle-num");
+const dateEl = document.getElementById("date-display");
+
+function renderBoard() {
+  const daily = modeDaily[currentMode];
+  boardEl.innerHTML = "";
+  for (let r = 0; r < 6; r++) {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.dataset.row = r;
+    let letters = ["", "", ""];
+    let evals = ["", "", ""];
+    if (r < daily.guesses.length) {
+      letters = daily.guesses[r].word.split("");
+      evals = daily.guesses[r].eval;
+    } else if (r === daily.guesses.length && daily.status === "playing") {
+      letters = currentInput.padEnd(3," ").split("").map(c => c === " " ? "" : c);
+    }
+    for (let c = 0; c < 3; c++) {
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.textContent = letters[c] || "";
+      if (letters[c] && r === daily.guesses.length) tile.classList.add("filled");
+      if (evals[c]) {
+        tile.classList.add(evals[c], "flipped");
+      }
+      row.appendChild(tile);
+    }
+    boardEl.appendChild(row);
+  }
+}
+
+const KB_ROWS = [
+  ["Q","W","E","R","T","Y","U","I","O","P"],
+  ["A","S","D","F","G","H","J","K","L"],
+  ["ENTER","Z","X","C","V","B","N","M","BKSP"]
+];
+function renderKeyboard() {
+  kbEl.innerHTML = "";
+  // For Plaid, do not reveal any letter state on the keyboard
+  const letterStates = {};
+  if (currentMode !== "plaid") {
+    const daily = modeDaily[currentMode];
+    for (const g of daily.guesses) {
+      for (let i = 0; i < 3; i++) {
+        const ch = g.word[i], st = g.eval[i];
+        if (!letterStates[ch]) letterStates[ch] = st;
+        else if (letterStates[ch] === "absent" && (st === "present" || st === "correct")) letterStates[ch] = st;
+        else if (letterStates[ch] === "present" && st === "correct") letterStates[ch] = st;
+      }
+    }
+  }
+  for (const row of KB_ROWS) {
+    const rowEl = document.createElement("div");
+    rowEl.className = "kb-row";
+    for (const k of row) {
+      const btn = document.createElement("button");
+      btn.className = "key";
+      if (k === "ENTER" || k === "BKSP") btn.classList.add("wide");
+      btn.textContent = k === "BKSP" ? "⌫" : k;
+      btn.dataset.key = k;
+      if (letterStates[k]) btn.classList.add(letterStates[k]);
+      btn.addEventListener("click", () => handleKey(k));
+      rowEl.appendChild(btn);
+    }
+    kbEl.appendChild(rowEl);
+  }
+}
+
+function renderModes() {
+  document.querySelectorAll(".mode").forEach(b => {
+    b.classList.toggle("active", b.dataset.mode === currentMode);
+  });
+}
+
+function renderHeader() {
+  const dayNum = getDayNumber();
+  puzzleNumEl.textContent = "#" + (dayNum + 1);
+  const opts = {weekday:"short", month:"short", day:"numeric"};
+  dateEl.textContent = new Date().toLocaleDateString(undefined, opts).toUpperCase();
+}
+
+function renderAll() {
+  renderHeader();
+  renderModes();
+  renderBoard();
+  renderKeyboard();
+}
+
+/* ─── TOAST ─── */
+let toastTimer = null;
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1500);
+}
+
+/* ─── INPUT HANDLING ─── */
+function handleKey(k) {
+  const daily = modeDaily[currentMode];
+  if (daily.status !== "playing") return;
+  if (k === "ENTER") return submitGuess();
+  if (k === "BKSP") {
+    currentInput = currentInput.slice(0, -1);
+    renderBoard();
+    return;
+  }
+  if (/^[A-Z]$/.test(k) && currentInput.length < 3) {
+    currentInput += k;
+    renderBoard();
+  }
+}
+
+document.addEventListener("keydown", (e) => {
+  if (document.querySelector(".modal-bg.show")) return;
+  const k = e.key.toUpperCase();
+  if (k === "ENTER") { e.preventDefault(); handleKey("ENTER"); }
+  else if (k === "BACKSPACE") { e.preventDefault(); handleKey("BKSP"); }
+  else if (/^[A-Z]$/.test(k)) handleKey(k);
+});
+
+/* ─── SUBMIT GUESS ─── */
+function submitGuess() {
+  const daily = modeDaily[currentMode];
+  if (currentInput.length !== 3) {
+    toast("Not enough letters");
+    shakeCurrentRow();
+    return;
+  }
+  if (!VALID_CODES.has(currentInput)) {
+    toast("Not in airport list");
+    shakeCurrentRow();
+    return;
+  }
+  const evalResult = evaluateForDisplay(currentInput, daily.answer, currentMode);
+  daily.guesses.push({word: currentInput, eval: evalResult});
+  const isWin = currentInput === daily.answer;
+  const isLast = daily.guesses.length >= 6;
+  if (isWin) daily.status = "won";
+  else if (isLast) daily.status = "lost";
+  flipRow(daily.guesses.length - 1, evalResult, () => {
+    if (isWin) {
+      animateWin(daily.guesses.length - 1);
+      updateStatsOnGameEnd(true, daily.guesses.length);
+      saveAll();
+      renderKeyboard();
+      setTimeout(showEndModal, 1400);
+    } else if (isLast) {
+      updateStatsOnGameEnd(false, 6);
+      saveAll();
+      renderKeyboard();
+      setTimeout(showEndModal, 600);
+    } else {
+      renderKeyboard();
+      saveAll();
+    }
+  });
+  currentInput = "";
+}
+
+function shakeCurrentRow() {
+  const daily = modeDaily[currentMode];
+  const rowEl = boardEl.children[daily.guesses.length];
+  if (!rowEl) return;
+  rowEl.classList.remove("shake");
+  void rowEl.offsetWidth;
+  rowEl.classList.add("shake");
+}
+
+function flipRow(rowIdx, evals, done) {
+  const rowEl = boardEl.children[rowIdx];
+  if (!rowEl) { done && done(); return; }
+  for (let i = 0; i < 3; i++) {
+    const tile = rowEl.children[i];
+    setTimeout(() => {
+      tile.classList.add("flipping");
+      setTimeout(() => {
+        tile.classList.remove("flipping","filled");
+        tile.classList.add(evals[i], "flipped");
+        if (i === 2 && done) setTimeout(done, 100);
+      }, 250);
+    }, i * 250);
+  }
+}
+
+function animateWin(rowIdx) {
+  const rowEl = boardEl.children[rowIdx];
+  if (rowEl) rowEl.classList.add("win");
+}
+
+/* ─── STATS ─── */
+function updateStatsOnGameEnd(won, guessCount) {
+  const s = modeStats[currentMode];
+  const dayNum = modeDaily[currentMode].day;
+  s.played++;
+  if (won) {
+    s.won++;
+    s.dist[guessCount - 1]++;
+    // Streak: only increments if yesterday was a win
+    if (s.lastWonDay === dayNum - 1 || s.lastWonDay === -1 && s.currentStreak === 0 || s.lastWonDay === dayNum) {
+      s.currentStreak = (s.lastWonDay === dayNum - 1) ? s.currentStreak + 1 : 1;
+    } else {
+      s.currentStreak = 1;
+    }
+    if (s.currentStreak > s.maxStreak) s.maxStreak = s.currentStreak;
+    s.lastWonDay = dayNum;
+  } else {
+    s.currentStreak = 0;
+  }
+}
+
+function fillStatsInto(prefix) {
+  const s = modeStats[currentMode];
+  document.getElementById(prefix + "played").textContent = s.played;
+  const wr = s.played === 0 ? 0 : Math.round(100 * s.won / s.played);
+  document.getElementById(prefix + "winrate").textContent = wr;
+  document.getElementById(prefix + "streak").textContent = s.currentStreak;
+  document.getElementById(prefix + "maxstreak").textContent = s.maxStreak;
+}
+
+function renderDistribution() {
+  const s = modeStats[currentMode];
+  const distEl = document.getElementById("dist");
+  distEl.innerHTML = "";
+  const max = Math.max(1, ...s.dist);
+  const daily = modeDaily[currentMode];
+  const wonAtThisRow = daily.status === "won" ? daily.guesses.length : -1;
+  for (let i = 0; i < 6; i++) {
+    const row = document.createElement("div");
+    row.className = "dist-row";
+    const label = document.createElement("div");
+    label.className = "dist-label";
+    label.textContent = (i + 1);
+    const barWrap = document.createElement("div");
+    barWrap.className = "dist-bar";
+    const fill = document.createElement("div");
+    fill.className = "dist-fill";
+    if (i + 1 === wonAtThisRow) fill.classList.add("current");
+    fill.style.width = (s.dist[i] / max * 100) + "%";
+    fill.textContent = s.dist[i];
+    barWrap.appendChild(fill);
+    row.appendChild(label);
+    row.appendChild(barWrap);
+    distEl.appendChild(row);
+  }
+}
+
+/* ─── MODALS ─── */
+function showModal(id) {
+  document.querySelectorAll(".modal-bg").forEach(m => m.classList.remove("show"));
+  document.getElementById(id).classList.add("show");
+}
+function hideAllModals() {
+  document.querySelectorAll(".modal-bg").forEach(m => m.classList.remove("show"));
+}
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", hideAllModals));
+document.querySelectorAll(".modal-bg").forEach(m => {
+  m.addEventListener("click", (e) => { if (e.target === m) hideAllModals(); });
+});
+document.getElementById("help-btn").addEventListener("click", () => showModal("help-modal"));
+document.getElementById("stats-btn").addEventListener("click", () => {
+  document.getElementById("stats-mode-label").textContent = MODE_LABELS[currentMode];
+  fillStatsInto("stat-");
+  renderDistribution();
+  showModal("stats-modal");
+});
+
+function showEndModal() {
+  const daily = modeDaily[currentMode];
+  const answer = daily.answer;
+  const info = AIRPORTS[answer];
+  document.getElementById("end-code").textContent = answer;
+  document.getElementById("end-city").textContent = info ? info[0] : "";
+  document.getElementById("end-country").textContent = info ? info[1] : "";
+  const resultEl = document.getElementById("end-result");
+  if (daily.status === "won") {
+    const n = daily.guesses.length;
+    const labels = ["Genius","Magnificent","Impressive","Splendid","Great","Phew"];
+    resultEl.innerHTML = "<strong>" + labels[n-1] + "</strong> — solved in " + n + "/6";
+  } else {
+    resultEl.innerHTML = "<strong>Better luck tomorrow</strong>";
+  }
+  fillStatsInto("end-stat-");
+  startCountdown();
+  showModal("end-modal");
+}
+
+/* ─── COUNTDOWN ─── */
+let countdownTimer = null;
+function startCountdown() {
+  clearInterval(countdownTimer);
+  const tick = () => {
+    const now = new Date();
+    const tomorrow = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0
+    ));
+    const ms = tomorrow.getTime() - now.getTime();
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    document.getElementById("countdown").textContent =
+      String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+  };
+  tick();
+  countdownTimer = setInterval(tick, 1000);
+}
+
+/* ─── SHARE ─── */
+function buildShareText() {
+  const daily = modeDaily[currentMode];
+  const dayNum = daily.day + 1;
+  const score = daily.status === "won" ? daily.guesses.length + "/6" : "X/6";
+  const lines = [];
+  lines.push("Airportle " + MODE_LABELS[currentMode] + " #" + dayNum + " " + score);
+  lines.push("");
+  for (const g of daily.guesses) {
+    let line = "";
+    for (const e of g.eval) {
+      if (e === "correct") line += "🟩";
+      else if (e === "present") line += "🟨";
+      else line += "⬛";
+    }
+    lines.push(line);
+  }
+  return lines.join("\n");
+}
+async function shareResult() {
+  const text = buildShareText();
+  if (navigator.share) {
+    try { await navigator.share({text}); return; } catch (e) {}
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Copied to clipboard");
+  } catch (e) {
+    toast("Could not copy");
+  }
+}
+document.getElementById("share-btn").addEventListener("click", shareResult);
+
+/* ─── MODE SWITCHING ─── */
+function switchMode(mode) {
+  currentMode = mode;
+  currentInput = "";
+  syncDaily(mode);
+  saveAll();
+  renderAll();
+  // Auto-show end modal if today's game is already complete
+  const daily = modeDaily[mode];
+  if (daily.status !== "playing") {
+    setTimeout(showEndModal, 200);
+  }
+}
+document.querySelectorAll(".mode").forEach(b => {
+  b.addEventListener("click", () => switchMode(b.dataset.mode));
+});
+
+/* ─── INIT ─── */
+function init() {
+  loadAll();
+  // Sync all four modes' daily state for today
+  for (const m of ["regular","ridiculous","ludicrous","plaid"]) syncDaily(m);
+  saveAll();
+  renderAll();
+  // First-time visitors see Help
+  if (!localStorage.getItem("airportle:seen-help")) {
+    showModal("help-modal");
+    try { localStorage.setItem("airportle:seen-help", "1"); } catch(e) {}
+  }
+  // If today's current-mode game is already over, show end modal
+  const daily = modeDaily[currentMode];
+  if (daily.status !== "playing") setTimeout(showEndModal, 300);
+}
+init();
+
+</script>
+
+</body>
+</html>
