@@ -92,15 +92,32 @@
   }
   @keyframes plaid-shift { 0% { background-position: 0% 0%; } 100% { background-position: 200% 200%; } }
   .board-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 8px 0; min-height: 0; }
-  .board { display: grid; grid-template-rows: repeat(6, 1fr); gap: 6px; aspect-ratio: 3 / 6; max-height: min(420px, 50vh); }
-  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  /* Explicit fixed tile size = guaranteed uniform dimensions in every state.
+     Scales smoothly: viewport-width on narrow phones, capped at 96px on bigger screens,
+     and shrinks vertically on short screens. */
+  :root {
+    --tile-size: min(24vw, calc((100vh - 360px) / 6), 96px);
+    --tile-gap: 6px;
+  }
+  .board {
+    display: grid;
+    grid-template-rows: repeat(6, var(--tile-size));
+    gap: var(--tile-gap);
+  }
+  .row {
+    display: grid;
+    grid-template-columns: repeat(3, var(--tile-size));
+    gap: var(--tile-gap);
+    height: var(--tile-size);
+  }
   .tile {
+    width: var(--tile-size); height: var(--tile-size);
     background: var(--bg-tile); border: 2px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    font-size: clamp(1.8rem, 6vw, 2.4rem); font-weight: 800;
-    color: var(--text-bright); aspect-ratio: 1;
-    text-transform: uppercase;
-    transition: transform 0.2s, border-color 0.1s;
+    font-size: calc(var(--tile-size) * 0.42); font-weight: 800;
+    color: var(--text-bright);
+    text-transform: uppercase; box-sizing: border-box;
+    transition: border-color 0.1s;
     perspective: 600px; transform-style: preserve-3d; line-height: 1;
   }
   .tile.filled {
@@ -259,7 +276,6 @@
     .mode { font-size: 0.55rem; padding: 7px 2px; }
     .app { padding: 10px 10px 6px; }
   }
-  @media (min-height: 800px) { .board { max-height: 480px; } }
 </style>
 </head>
 <body>
