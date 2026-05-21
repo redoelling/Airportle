@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -367,52 +366,49 @@
 <div class="modal-bg" id="help-modal">
   <div class="modal">
     <button class="modal-close" data-close>×</button>
-    <h2>Boarding Pass</h2>
-    <p>Every day, four flights are waiting. Your job: identify each <strong>3-letter IATA code</strong> in 6 attempts. Type any code from the list and the board lights up to tell you how close you are.</p>
-    <p class="dim">Heads up: Airportle uses a hand-picked subset of the world's IATA codes, not all ~11,300 of them. Only codes that live in this dataset count as valid guesses — if a real airport gets rejected, it just isn't in the deck.</p>
+    <h2>How to Play</h2>
+    <p>Each day there are four puzzles. Guess the hidden <strong>3-letter airport code</strong> in 6 tries. Type any code from the list and the tiles change color to show how close you are.</p>
+    <p class="dim">Note: Airportle uses a hand-picked set of airport codes, not all ~11,300 that exist. Only codes in this set count as valid guesses — if a real airport gets rejected, it just isn't included here.</p>
 
-```
-<div class="legend">
-  <div class="legend-row"><span class="chip g"></span> Right letter, right position</div>
-  <div class="legend-row"><span class="chip y"></span> Right letter, wrong position</div>
-  <div class="legend-row"><span class="chip x"></span> Letter isn't in the code at all</div>
-</div>
-
-<p class="dim" style="margin-top:18px;">Here's a sample run. The hidden code is <strong style="color:var(--amber)">ATL</strong> — welcome home:</p>
-
-<div class="walkthrough">
-  <div class="wt-step">
-    <div class="wt-tiles">
-      <div class="help-tile absent">D</div><div class="help-tile absent">E</div><div class="help-tile absent">N</div>
+    <div class="legend">
+      <div class="legend-row"><span class="chip g"></span> Right letter, right position</div>
+      <div class="legend-row"><span class="chip y"></span> Right letter, wrong position</div>
+      <div class="legend-row"><span class="chip x"></span> Letter isn't in the code at all</div>
     </div>
-    <div class="wt-note">Opened with <b>DEN</b>. All three go dark — none of D, E, N appear in the answer. Rule them out.</div>
-  </div>
-  <div class="wt-step">
-    <div class="wt-tiles">
-      <div class="help-tile present">L</div><div class="help-tile present">A</div><div class="help-tile absent">S</div>
-    </div>
-    <div class="wt-note">Tried <b>LAS</b>. <span class="y">L</span> and <span class="y">A</span> glow amber — both letters are in the code, but not where we put them. <b>S</b> is out.</div>
-  </div>
-  <div class="wt-step">
-    <div class="wt-tiles">
-      <div class="help-tile correct">A</div><div class="help-tile correct">T</div><div class="help-tile correct">L</div>
-    </div>
-    <div class="wt-note">Moved A to the front, L to the back, added a <b>T</b>: <span class="g">ATL</span>. Touchdown in three.</div>
-  </div>
-</div>
 
-<h2 style="margin-top:26px;">The Four Gates</h2>
-<p class="dim">Each gate is its own daily puzzle with its own pool. Pick your altitude:</p>
-<div class="depboard">
-  <div class="depboard-head"><div>Gate</div><div>Now Boarding</div></div>
-  <div class="depboard-row"><div class="gate">regular</div><div class="desc">Major US hubs and the world's headline airports.</div></div>
-  <div class="depboard-row"><div class="gate">ridiculous</div><div class="desc">Smaller US cities and second-tier international fields.</div></div>
-  <div class="depboard-row"><div class="gate">ludicrous</div><div class="desc">Deep cuts — regional strips and far-flung outposts.</div></div>
-  <div class="depboard-row plaid"><div class="gate">plaid</div><div class="desc">Ludicrous's pool with the lights off: <em>no amber, no green</em> until you nail all three. Pure recall.</div></div>
-</div>
-<p class="dim">No code repeats inside a gate until you've seen them all. Fresh flights every midnight Eastern. Progress is saved on this device only.</p>
-```
+    <p class="dim" style="margin-top:18px;">Here's an example. The hidden code is <strong style="color:var(--amber)">ATL</strong>:</p>
 
+    <div class="walkthrough">
+      <div class="wt-step">
+        <div class="wt-tiles">
+          <div class="help-tile absent">D</div><div class="help-tile absent">E</div><div class="help-tile absent">N</div>
+        </div>
+        <div class="wt-note">Started with <b>DEN</b>. All three are gray — none of D, E, N are in the answer.</div>
+      </div>
+      <div class="wt-step">
+        <div class="wt-tiles">
+          <div class="help-tile present">L</div><div class="help-tile present">A</div><div class="help-tile absent">S</div>
+        </div>
+        <div class="wt-note">Tried <b>LAS</b>. <span class="y">L</span> and <span class="y">A</span> turn yellow — both are in the code, but in different spots. <b>S</b> isn't in it.</div>
+      </div>
+      <div class="wt-step">
+        <div class="wt-tiles">
+          <div class="help-tile correct">A</div><div class="help-tile correct">T</div><div class="help-tile correct">L</div>
+        </div>
+        <div class="wt-note">Moved A and L, added a <b>T</b>: <span class="g">ATL</span>. Solved in three.</div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:26px;">Four Difficulty Levels</h2>
+    <p class="dim">Each level is its own daily puzzle with its own set of codes:</p>
+    <div class="depboard">
+      <div class="depboard-head"><div>Level</div><div>What's In It</div></div>
+      <div class="depboard-row"><div class="gate">regular</div><div class="desc">Major US airports and well-known ones worldwide.</div></div>
+      <div class="depboard-row"><div class="gate">ridiculous</div><div class="desc">Smaller US cities and lesser-known international airports.</div></div>
+      <div class="depboard-row"><div class="gate">ludicrous</div><div class="desc">Obscure airports from all over the world.</div></div>
+      <div class="depboard-row plaid"><div class="gate">plaid</div><div class="desc">Same codes as Ludicrous, but with <em>no color hints</em> — you only win by guessing the exact code.</div></div>
+    </div>
+    <p class="dim">No code repeats in a level until you've seen them all. New puzzles every midnight Eastern. Progress is saved on this device only.</p>
   </div>
 </div>
 
@@ -1605,6 +1601,5 @@ function init() {
 init();
 
 </script>
-
 </body>
 </html>
