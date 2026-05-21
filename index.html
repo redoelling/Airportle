@@ -299,20 +299,21 @@
     background: #0d1118;
   }
   .depboard-head {
-    display: grid; grid-template-columns: 92px 1fr;
+    display: grid; grid-template-columns: 108px 1fr; column-gap: 12px;
     font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase;
     color: var(--amber-soft); padding: 6px 10px;
     border-bottom: 1px solid var(--border); font-weight: 700;
   }
   .depboard-row {
-    display: grid; grid-template-columns: 92px 1fr;
+    display: grid; grid-template-columns: 108px 1fr; column-gap: 12px;
     padding: 8px 10px; align-items: center;
     border-bottom: 1px solid var(--border);
   }
   .depboard-row:last-child { border-bottom: none; }
   .depboard-row .gate {
     font-family: 'Major Mono Display', monospace;
-    color: var(--amber); font-size: 0.78rem; letter-spacing: 0.03em;
+    color: var(--amber); font-size: 0.66rem; letter-spacing: 0.02em;
+    word-break: break-word; line-height: 1.2;
   }
   .depboard-row.plaid .gate {
     background: linear-gradient(45deg,#ff4e50,#f9d423,#4ecdc4);
