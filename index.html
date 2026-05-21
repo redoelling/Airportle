@@ -409,7 +409,7 @@
   <div class="depboard-row"><div class="gate">ludicrous</div><div class="desc">Deep cuts — regional strips and far-flung outposts.</div></div>
   <div class="depboard-row plaid"><div class="gate">plaid</div><div class="desc">Ludicrous's pool with the lights off: <em>no amber, no green</em> until you nail all three. Pure recall.</div></div>
 </div>
-<p class="dim">No code repeats inside a gate until you've seen them all. Fresh flights every midnight UTC. Progress is saved on this device only.</p>
+<p class="dim">No code repeats inside a gate until you've seen them all. Fresh flights every midnight Eastern. Progress is saved on this device only.</p>
 ```
 
   </div>
@@ -1104,10 +1104,29 @@ function seededShuffle(arr, seed) {
 // Daily puzzle: deterministic rotation through each tier's pool.
 // Same airport never repeats until the entire pool is exhausted.
 // Plaid uses ludicrous pool but its own seed so playing one doesn't spoil the other.
-const LAUNCH_UTC = Date.UTC(2026, 0, 1); // Jan 1, 2026
+//
+// Puzzles roll over at MIDNIGHT EASTERN (America/New_York), DST-aware.
+// We read the civil date in New York, then count whole days since launch.
+// Launch day = Jan 1, 2026 (Eastern) = day 0.
+const TZ = "America/New_York";
 const DAY_MS = 86400000;
+const LAUNCH_DAY_COUNT = Math.floor(Date.UTC(2026, 0, 1) / DAY_MS);
+// Returns {y, m, d, h, min, s} for "now" as seen on a New York wall clock.
+function easternParts(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ, hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit"
+  }).formatToParts(date);
+  const g = (t) => +parts.find(p => p.type === t).value;
+  let h = g("hour"); if (h === 24) h = 0; // some engines report 24 at midnight
+  return { y: g("year"), m: g("month"), d: g("day"), h, min: g("minute"), s: g("second") };
+}
 function getDayNumber() {
-  return Math.floor((Date.now() - LAUNCH_UTC) / DAY_MS);
+  const e = easternParts(new Date());
+  // Treat the NY civil date as a UTC date purely to count whole days.
+  const todayCount = Math.floor(Date.UTC(e.y, e.m - 1, e.d) / DAY_MS);
+  return todayCount - LAUNCH_DAY_COUNT;
 }
 function getAnswerForMode(mode, dayNum) {
   const pool = MODE_POOLS[mode];
@@ -1491,14 +1510,14 @@ let countdownTimer = null;
 function startCountdown() {
   clearInterval(countdownTimer);
   const tick = () => {
-    const now = new Date();
-    const tomorrow = new Date(Date.UTC(
-      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0
-    ));
-    const ms = tomorrow.getTime() - now.getTime();
-    const h = Math.floor(ms / 3600000);
-    const m = Math.floor((ms % 3600000) / 60000);
-    const s = Math.floor((ms % 60000) / 1000);
+    // Seconds remaining until the NY wall clock next reads 00:00:00.
+    const e = easternParts(new Date());
+    const elapsed = e.h * 3600 + e.min * 60 + e.s;
+    let remaining = 86400 - elapsed;
+    if (remaining <= 0) remaining += 86400;
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    const s = remaining % 60;
     document.getElementById("countdown").textContent =
       String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
   };
