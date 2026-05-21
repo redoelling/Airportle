@@ -220,6 +220,24 @@
   }
   .countdown strong { color: var(--text); font-weight: 700; }
   .btn-row { display: flex; gap: 8px; margin-top: 16px; justify-content: center; }
+  .share-block { margin-top: 16px; }
+  .share-label {
+    font-size: 0.65rem; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.15em;
+    text-align: center; margin-bottom: 8px;
+  }
+  .share-text {
+    background: var(--bg-tile); border: 1px solid var(--border);
+    color: var(--text-bright);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.85rem; line-height: 1.5;
+    padding: 12px; margin: 0;
+    white-space: pre; text-align: center;
+    user-select: text; -webkit-user-select: text;
+    -webkit-touch-callout: default;
+    overflow-x: auto;
+    cursor: text;
+  }
   .btn {
     background: var(--amber); color: var(--bg);
     border: none; font-family: inherit;
@@ -245,25 +263,63 @@
     transition: width 0.5s;
   }
   .dist-fill.current { background: var(--amber); }
-  .help-example { display: flex; gap: 4px; margin: 10px 0; }
+  /* ── Help: worked-example walkthrough ── */
+  .walkthrough { margin: 14px 0 8px; }
+  .wt-step {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0; border-bottom: 1px dashed var(--border);
+  }
+  .wt-step:last-child { border-bottom: none; }
+  .wt-tiles { display: flex; gap: 4px; flex-shrink: 0; }
   .help-tile {
-    width: 32px; height: 32px; border: 2px solid var(--border);
+    width: 34px; height: 34px; border: 2px solid var(--border);
     display: flex; align-items: center; justify-content: center;
-    font-weight: 800; background: var(--bg-tile); color: var(--text-bright);
+    font-weight: 800; font-size: 1rem;
+    background: var(--bg-tile); color: var(--text-bright);
   }
   .help-tile.correct { background: var(--green-bg); border-color: var(--green-bg); color: white; }
   .help-tile.present { background: var(--yellow-bg); border-color: var(--yellow-bg); color: white; }
   .help-tile.absent { background: var(--absent); border-color: var(--absent); color: var(--text-dim); }
-  .mode-list { margin: 12px 0; }
-  .mode-list li {
-    list-style: none; padding: 6px 0;
-    border-bottom: 1px solid var(--border); font-size: 0.78rem;
+  .wt-note { font-size: 0.74rem; line-height: 1.45; color: var(--text-dim); }
+  .wt-note b { color: var(--text-bright); font-weight: 700; }
+  .wt-note .g { color: var(--green); font-weight: 700; }
+  .wt-note .y { color: var(--yellow); font-weight: 700; }
+  /* ── Help: legend chips ── */
+  .legend { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+  .legend-row { display: flex; align-items: center; gap: 10px; font-size: 0.76rem; }
+  .chip {
+    width: 18px; height: 18px; flex-shrink: 0; border-radius: 3px;
   }
-  .mode-list li:last-child { border-bottom: none; }
-  .mode-list strong {
-    color: var(--amber); text-transform: uppercase;
-    letter-spacing: 0.1em; font-size: 0.75rem;
+  .chip.g { background: var(--green-bg); }
+  .chip.y { background: var(--yellow-bg); }
+  .chip.x { background: var(--absent); }
+  /* ── Help: difficulty as a departure board ── */
+  .depboard {
+    margin: 12px 0; border: 1px solid var(--border);
+    background: #0d1118;
   }
+  .depboard-head {
+    display: grid; grid-template-columns: 92px 1fr;
+    font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--amber-soft); padding: 6px 10px;
+    border-bottom: 1px solid var(--border); font-weight: 700;
+  }
+  .depboard-row {
+    display: grid; grid-template-columns: 92px 1fr;
+    padding: 8px 10px; align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .depboard-row:last-child { border-bottom: none; }
+  .depboard-row .gate {
+    font-family: 'Major Mono Display', monospace;
+    color: var(--amber); font-size: 0.78rem; letter-spacing: 0.03em;
+  }
+  .depboard-row.plaid .gate {
+    background: linear-gradient(45deg,#ff4e50,#f9d423,#4ecdc4);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .depboard-row .desc { font-size: 0.72rem; color: var(--text); line-height: 1.4; }
   .plaid-warning {
     background: linear-gradient(45deg, rgba(255,78,80,0.1), rgba(249,212,35,0.1), rgba(78,205,196,0.1));
     border: 1px solid #f9d423;
@@ -310,29 +366,52 @@
 <div class="modal-bg" id="help-modal">
   <div class="modal">
     <button class="modal-close" data-close>×</button>
-    <h2>How to Play</h2>
-    <p>Guess the daily 3-letter <strong>IATA airport code</strong> in 6 tries.</p>
-    <p>Each guess must be a real IATA code. Tile colors show how close you are:</p>
-    <div class="help-example">
-      <div class="help-tile correct">L</div><div class="help-tile">A</div><div class="help-tile">X</div>
+    <h2>Boarding Pass</h2>
+    <p>Every day, four flights are waiting. Your job: identify each <strong>3-letter IATA code</strong> in 6 attempts. Type any code from the list and the board lights up to tell you how close you are.</p>
+    <p class="dim">Heads up: Airportle uses a hand-picked subset of the world's IATA codes, not all ~11,300 of them. Only codes that live in this dataset count as valid guesses — if a real airport gets rejected, it just isn't in the deck.</p>
+
+```
+<div class="legend">
+  <div class="legend-row"><span class="chip g"></span> Right letter, right position</div>
+  <div class="legend-row"><span class="chip y"></span> Right letter, wrong position</div>
+  <div class="legend-row"><span class="chip x"></span> Letter isn't in the code at all</div>
+</div>
+
+<p class="dim" style="margin-top:18px;">Here's a sample run. The hidden code is <strong style="color:var(--amber)">ATL</strong> — welcome home:</p>
+
+<div class="walkthrough">
+  <div class="wt-step">
+    <div class="wt-tiles">
+      <div class="help-tile absent">D</div><div class="help-tile absent">E</div><div class="help-tile absent">N</div>
     </div>
-    <p class="dim"><strong style="color:var(--green)">L</strong> is in the answer and in the right spot.</p>
-    <div class="help-example">
-      <div class="help-tile">J</div><div class="help-tile present">F</div><div class="help-tile">K</div>
+    <div class="wt-note">Opened with <b>DEN</b>. All three go dark — none of D, E, N appear in the answer. Rule them out.</div>
+  </div>
+  <div class="wt-step">
+    <div class="wt-tiles">
+      <div class="help-tile present">L</div><div class="help-tile present">A</div><div class="help-tile absent">S</div>
     </div>
-    <p class="dim"><strong style="color:var(--yellow)">F</strong> is in the answer but in the wrong spot.</p>
-    <div class="help-example">
-      <div class="help-tile">B</div><div class="help-tile">O</div><div class="help-tile absent">S</div>
+    <div class="wt-note">Tried <b>LAS</b>. <span class="y">L</span> and <span class="y">A</span> glow amber — both letters are in the code, but not where we put them. <b>S</b> is out.</div>
+  </div>
+  <div class="wt-step">
+    <div class="wt-tiles">
+      <div class="help-tile correct">A</div><div class="help-tile correct">T</div><div class="help-tile correct">L</div>
     </div>
-    <p class="dim"><strong style="color:var(--text-dim)">S</strong> is not in the answer.</p>
-    <h2 style="margin-top:24px;">Difficulty Modes</h2>
-    <ul class="mode-list">
-      <li><strong>Regular</strong><br>US large/medium hubs &amp; top global airports.</li>
-      <li><strong>Ridiculous</strong><br>US small hubs &amp; tertiary international.</li>
-      <li><strong>Ludicrous</strong><br>Regional &amp; obscure airports worldwide (~70% international).</li>
-      <li><strong>Plaid</strong><br>Same pool as Ludicrous, but <em>no color hints</em>. Guess the exact code or lose.</li>
-    </ul>
-    <p class="dim">Each mode has its own daily puzzle, and no airport repeats until the entire tier is exhausted. New puzzles at midnight UTC.</p>
+    <div class="wt-note">Moved A to the front, L to the back, added a <b>T</b>: <span class="g">ATL</span>. Touchdown in three.</div>
+  </div>
+</div>
+
+<h2 style="margin-top:26px;">The Four Gates</h2>
+<p class="dim">Each gate is its own daily puzzle with its own pool. Pick your altitude:</p>
+<div class="depboard">
+  <div class="depboard-head"><div>Gate</div><div>Now Boarding</div></div>
+  <div class="depboard-row"><div class="gate">regular</div><div class="desc">Major US hubs and the world's headline airports.</div></div>
+  <div class="depboard-row"><div class="gate">ridiculous</div><div class="desc">Smaller US cities and second-tier international fields.</div></div>
+  <div class="depboard-row"><div class="gate">ludicrous</div><div class="desc">Deep cuts — regional strips and far-flung outposts.</div></div>
+  <div class="depboard-row plaid"><div class="gate">plaid</div><div class="desc">Ludicrous's pool with the lights off: <em>no amber, no green</em> until you nail all three. Pure recall.</div></div>
+</div>
+<p class="dim">No code repeats inside a gate until you've seen them all. Fresh flights every midnight UTC. Progress is saved on this device only.</p>
+```
+
   </div>
 </div>
 
@@ -369,8 +448,12 @@
       <div class="stat"><div class="stat-num" id="end-stat-maxstreak">0</div><div class="stat-label">Max</div></div>
     </div>
     <div class="countdown">Next puzzle in <strong id="countdown">—</strong></div>
-    <div class="btn-row">
-      <button class="btn" id="share-btn">▤ SHARE</button>
+    <div class="share-block">
+      <div class="share-label">Tap-and-hold or select to copy:</div>
+      <pre class="share-text" id="share-text">—</pre>
+      <div class="btn-row">
+        <button class="btn" id="copy-btn">▤ COPY</button>
+      </div>
     </div>
   </div>
 </div>
@@ -438,7 +521,7 @@ AMM:["Amman","Jordan",1],
 HND:["Tokyo Haneda","Japan",1], NRT:["Tokyo Narita","Japan",1], KIX:["Osaka","Japan",1],
 ITM:["Osaka Itami","Japan",1], NGO:["Nagoya","Japan",1], FUK:["Fukuoka","Japan",1],
 ICN:["Seoul","South Korea",1], GMP:["Seoul Gimpo","South Korea",1],
-PEK:["Beijing Capital","China",1], PVG:["Shanghai Pudong","China",1],
+PEK:["Beijing Capital","China",1], PKX:["Beijing Daxing","China",1], PVG:["Shanghai Pudong","China",1],
 SHA:["Shanghai Hongqiao","China",1], CAN:["Guangzhou","China",1], CTU:["Chengdu","China",1],
 HKG:["Hong Kong","Hong Kong",1], TPE:["Taipei","Taiwan",1], SIN:["Singapore","Singapore",1],
 BKK:["Bangkok","Thailand",1], DMK:["Bangkok Don Mueang","Thailand",1],
@@ -804,7 +887,7 @@ HRI:["Hingurakgoda","Sri Lanka",3], GAN:["Gan","Maldives",3],
 CGP:["Chittagong","Bangladesh",3], JSR:["Jessore","Bangladesh",3],
 ISU:["Sulaymaniyah","Iraq",3], EBL:["Erbil","Iraq",3], BSR:["Basra","Iraq",3], BGW:["Baghdad","Iraq",3],
 DAM:["Damascus","Syria",3], ALP:["Aleppo","Syria",3],
-SHJ:["Sharjah","UAE",3], RKT:["Ras Al Khaimah","UAE",3], AAN:["Al Ain","UAE",3],
+SHJ:["Sharjah","UAE",2], RKT:["Ras Al Khaimah","UAE",3], AAN:["Al Ain","UAE",3],
 SAH:["Sanaa","Yemen",3], ADE:["Aden","Yemen",3],
 DMM:["Dammam","Saudi Arabia",3], MED:["Medina","Saudi Arabia",3], AHB:["Abha","Saudi Arabia",3],
 TUU:["Tabuk","Saudi Arabia",3], AQJ:["Aqaba","Jordan",3],
@@ -936,6 +1019,36 @@ NUK:["Nukutavake","French Polynesia",3], HUH:["Huahine","French Polynesia",3],
 MOZ:["Moorea","French Polynesia",3]
 });
 delete AIRPORTS.TIA2; delete AIRPORTS.MFM2; delete AIRPORTS.HBA2;
+
+/* — Sweep additions (gaps identified post-launch) — */
+Object.assign(AIRPORTS, {
+  // Tier 1 additions
+  CVG:["Cincinnati","USA",1],
+  SVO:["Moscow Sheremetyevo","Russia",1],
+  DME:["Moscow Domodedovo","Russia",1],
+  // Tier 2 additions
+  VKO:["Moscow Vnukovo","Russia",2],
+  DWC:["Dubai World Central","UAE",2],
+  NLU:["Mexico City AIFA","Mexico",2],
+  UVF:["St. Lucia Hewanorra","St. Lucia",2],
+  VRA:["Varadero","Cuba",2],
+  POP:["Puerto Plata","Dom. Rep.",2],
+  FPO:["Freeport","Bahamas",2],
+  KBL:["Kabul","Afghanistan",2],
+  BQN:["Aguadilla","Puerto Rico",2],
+  // Tier 3 additions
+  MVY:["Martha's Vineyard","USA",3],
+  GIB:["Gibraltar","Gibraltar",3],
+  TFN:["Tenerife North","Spain",3],
+  HOG:["Holguín","Cuba",3],
+  STI:["Santiago DR","Dom. Rep.",3],
+  LRM:["La Romana","Dom. Rep.",3],
+  LTO:["Loreto","Mexico",3],
+  MKK:["Molokai","USA",3],
+  LNY:["Lanai","USA",3],
+  HFA:["Haifa","Israel",3],
+  ETM:["Eilat Ramon","Israel",3]
+});
 
 /* ═══════════════════════════════════════════════════════════════════════
    GAME LOGIC
@@ -1368,6 +1481,7 @@ function showEndModal() {
     resultEl.innerHTML = "<strong>Better luck tomorrow</strong>";
   }
   fillStatsInto("end-stat-");
+  document.getElementById("share-text").textContent = buildShareText();
   startCountdown();
   showModal("end-modal");
 }
@@ -1411,19 +1525,29 @@ function buildShareText() {
   }
   return lines.join("\n");
 }
-async function shareResult() {
-  const text = buildShareText();
-  if (navigator.share) {
-    try { await navigator.share({text}); return; } catch (e) {}
-  }
+async function copyShareText() {
+  const text = document.getElementById("share-text").textContent;
+  // Try modern clipboard API first
   try {
     await navigator.clipboard.writeText(text);
-    toast("Copied to clipboard");
+    toast("Copied!");
+    return;
+  } catch (e) {}
+  // Fallback: select the share text element so user can manually copy
+  try {
+    const el = document.getElementById("share-text");
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand("copy");
+    toast("Copied!");
   } catch (e) {
-    toast("Could not copy");
+    toast("Select text and copy manually");
   }
 }
-document.getElementById("share-btn").addEventListener("click", shareResult);
+document.getElementById("copy-btn").addEventListener("click", copyShareText);
 
 /* ─── MODE SWITCHING ─── */
 function switchMode(mode) {
